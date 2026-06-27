@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "Seculoca",
+  "version": "1.0.0",
+  "description": "Vérifiez instantanément si une annonce de location est une arnaque.",
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://www.leboncoin.fr/*",
+    "https://www.seloger.com/*",
+    "https://www.pap.fr/*",
+    "https://www.logic-immo.com/*",
+    "https://www.laforet.com/*",
+    "https://www.century21.fr/*",
+    "https://www.orpi.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Seculoca — Vérifier cette annonce",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.leboncoin.fr/annonces/*",
+        "https://www.seloger.com/annonces/*",
+        "https://www.pap.fr/annonce/*",
+        "https://www.logic-immo.com/detail-location/*"
+      ],
+      "js": [
+        "src/content.js"
+      ],
+      "css": [
+        "src/content.css"
+      ]
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

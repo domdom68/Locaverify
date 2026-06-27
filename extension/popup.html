@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seculoca</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { width: 320px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #F8FAFC; color: #1e293b; }
+    .header { background: #0F1B35; padding: 14px 16px; display: flex; align-items: center; gap: 10px; }
+    .logo { width: 28px; height: 28px; background: #1E5FD4; border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .header-text h1 { color: white; font-size: 15px; font-weight: 700; letter-spacing: -0.3px; }
+    .header-text p { color: #94a3b8; font-size: 11px; margin-top: 1px; }
+    .body { padding: 16px; }
+    .url-pill { background: #EEF4FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 8px 12px; font-size: 11px; color: #1d4ed8; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 14px; }
+    .btn { width: 100%; padding: 12px; border-radius: 10px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.15s; }
+    .btn-primary { background: #1E5FD4; color: white; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-secondary { background: white; color: #64748b; border: 1px solid #e2e8f0; margin-top: 8px; }
+    .btn-secondary:hover { background: #f8fafc; }
+    .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .result { margin-top: 14px; }
+    .score-row { display: flex; align-items: center; gap: 12px; background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+    .score-num { font-size: 36px; font-weight: 800; line-height: 1; }
+    .score-label { font-size: 12px; font-weight: 600; margin-top: 2px; }
+    .score-summary { font-size: 11.5px; color: #475569; line-height: 1.5; flex: 1; }
+    .green { color: #059669; }
+    .amber { color: #D97706; }
+    .red   { color: #DC2626; }
+    .criteria { background: white; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+    .criterion { display: flex; align-items: flex-start; gap: 8px; padding: 9px 12px; border-bottom: 1px solid #f1f5f9; font-size: 11px; }
+    .criterion:last-child { border-bottom: none; }
+    .criterion-label { font-weight: 600; color: #1e293b; }
+    .criterion-detail { color: #64748b; margin-top: 1px; }
+    .cta { margin-top: 12px; background: #0F1B35; border-radius: 10px; padding: 12px; text-align: center; }
+    .cta p { color: #94a3b8; font-size: 11px; margin-bottom: 8px; }
+    .cta a { color: white; font-size: 12px; font-weight: 600; text-decoration: none; background: #1E5FD4; padding: 7px 14px; border-radius: 8px; display: inline-block; }
+    .not-listing { text-align: center; padding: 20px 0; color: #94a3b8; font-size: 13px; }
+    .not-listing .icon { font-size: 32px; margin-bottom: 8px; }
+    .error-msg { background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; padding: 10px 12px; font-size: 12px; color: #dc2626; margin-top: 10px; }
+    .login-prompt { text-align: center; padding: 12px 0; }
+    .login-prompt p { font-size: 12px; color: #64748b; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+        <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M8 5L10.5 6.5V9.5L8 11L5.5 9.5V6.5L8 5Z" fill="white"/>
+      </svg>
+    </div>
+    <div class="header-text">
+      <h1>Seculoca</h1>
+      <p>Détection d'arnaques locatives</p>
+    </div>
+  </div>
+
+  <div class="body" id="app">
+    <div class="not-listing"><div class="icon">🔍</div><p>Chargement…</p></div>
+  </div>
+
+  <script src="src/popup.js"></script>
+</body>
+</html>
