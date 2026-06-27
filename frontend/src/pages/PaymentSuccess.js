@@ -27,8 +27,8 @@ export default function PaymentSuccess() {
       </h1>
       <p className="text-slate-500 text-sm leading-relaxed mb-8">
         {isSubscription
-          ? 'Votre abonnement est actif. Profitez d'analyses illimitées sans vous soucier d'un compteur.'
-          : 'Vos crédits ont été ajoutés à votre compte. Vous pouvez maintenant analyser des annonces.'}
+          ? "Votre abonnement est actif. Profitez d'analyses illimitées sans vous soucier d'un compteur."
+          : "Vos crédits ont été ajoutés à votre compte. Vous pouvez maintenant analyser des annonces."}
       </p>
       <div className="flex flex-col gap-3">
         <Link to="/analyser" className="py-3.5 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 transition-colors">

@@ -14,18 +14,18 @@ const FEATURES = [
   },
   {
     icon: '🗺️',
-    title: 'Vérification de l'adresse',
+    title: "Vérification de l'adresse",
     desc: "Vérifie que l'adresse existe réellement et correspond à un bien résidentiel via cartographie.",
   },
   {
     icon: '🖼️',
-    title: 'Détection d'images volées',
+    title: "Détection d'images volées",
     desc: "Identifie les photos copiées depuis d'autres annonces ou sites, signe révélateur de fausse annonce.",
   },
 ];
 
 const PACKS = [
-  { name: 'Découverte', credits: 5, price: 0, per: 'Gratuit à l'inscription', highlight: false, free: true },
+  { name: 'Découverte', credits: 5, price: 0, per: "Gratuit à l'inscription", highlight: false, free: true },
   { name: 'Pack Essentiel', credits: 10, price: '4,99 €', per: 'paiement unique', highlight: false, badge: 'Ponctuel' },
   { name: 'Solo', credits: null, price: '29,99 €', per: '/an · illimité*', highlight: true, badge: 'Le plus populaire' },
   { name: 'Pro', credits: null, price: '99 €', per: '/an · illimité + API*', highlight: false, badge: 'Professionnels' },
