@@ -1457,6 +1457,54 @@ function showSection(id) {
   }, 100);
 }
 </script>
+<script>
+// Formulaire de contact
+document.addEventListener('DOMContentLoaded', function() {
+  const btnContact = document.querySelector('#contact .btn-primary');
+  if (!btnContact) return;
 
+  btnContact.addEventListener('click', async function() {
+    const section = document.getElementById('contact');
+    const inputs = section.querySelectorAll('input, select, textarea');
+    
+    const prenom   = inputs[0].value.trim();
+    const nom      = inputs[1].value.trim();
+    const email    = inputs[2].value.trim();
+    const mobile   = inputs[3].value.trim();
+    const sujet    = inputs[4].value;
+    const message  = inputs[5].value.trim();
+
+    if (!prenom || !email || !sujet || !message) {
+      alert('Merci de remplir tous les champs obligatoires (*)');
+      return;
+    }
+
+    btnContact.textContent = 'Envoi en cours...';
+    btnContact.disabled = true;
+
+    try {
+      const response = await fetch('https://locaverify-production.up.railway.app/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prenom, nom, email, mobile, sujet, message })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert('✅ Message envoyé ! Nous vous répondrons sous 24h.');
+        inputs.forEach(i => i.value = '');
+      } else {
+        alert('❌ Erreur : ' + (data.error || 'Veuillez réessayer.'));
+      }
+    } catch (error) {
+      alert('❌ Erreur de connexion. Veuillez réessayer.');
+    } finally {
+      btnContact.textContent = 'Envoyer le message →';
+      btnContact.disabled = false;
+    }
+  });
+});
+</script>
 </body>
 </html>
