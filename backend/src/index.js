@@ -14,7 +14,7 @@ const feedbackRouter    = require('./routes/feedback');
 const paymentCheckRouter = require('./routes/paymentCheck');
 const communityRouter    = require('./routes/community');
 const userRouter         = require('./routes/user');
-
+const contactRouter    = require('./routes/contact');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -47,7 +47,7 @@ app.use('/api/feedback',       feedbackRouter);
 app.use('/api/payment-check',  paymentCheckRouter);
 app.use('/api/community',      communityRouter);
 app.use('/api/user',           userRouter);
-
+app.use('/api/contact',    contactRouter);
 app.get('/health', (req, res) => res.json({ ok: true, timestamp: new Date().toISOString() }));
 
 app.listen(PORT, () => console.log(`✅ Seculoca backend v2 démarré sur le port ${PORT}`));
