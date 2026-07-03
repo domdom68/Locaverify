@@ -14,7 +14,8 @@
     "stripe": "^14.10.0",
     "@supabase/supabase-js": "^2.39.0",
     "openai": "^4.24.0",
-    "express-rate-limit": "^7.1.5"
+    "express-rate-limit": "^7.1.5",
+    "resend": "^3.2.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
