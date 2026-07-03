@@ -16,8 +16,8 @@ const communityRouter    = require('./routes/community');
 const userRouter         = require('./routes/user');
 const contactRouter    = require('./routes/contact');
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
-
 app.use(cors({
   origin: function(origin, callback) {
     const allowed = [
