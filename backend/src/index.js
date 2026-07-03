@@ -24,10 +24,11 @@ app.use(cors({
       'https://www.seculoca.fr',
       'https://seculoca.fr',
       'https://seculoca.vercel.app',
+      'https://locaverify.vercel.app',
       'http://localhost:3000',
       'http://localhost:5173'
     ];
-    if (!origin || allowed.includes(origin)) {
+    if (!origin || allowed.includes(origin) || origin.endsWith('.vercel.app')) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
