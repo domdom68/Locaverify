@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://locaverify-production.up.railway.app';
+const API_URL = import.meta.env.VITE_API_URL || 'https://locaverify-production.up.railway.app';
 
 export default function Landing() {
   const [contactForm, setContactForm] = useState({
