@@ -13,7 +13,7 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    await resend.emails.send({
+    const result1 = await resend.emails.send({
       from: 'Seculoca <contact@seculoca.fr>',
       to: 'contact@seculoca.fr',
       reply_to: email,
@@ -31,7 +31,12 @@ router.post('/', async (req, res) => {
       `
     });
 
-    await resend.emails.send({
+    if (result1.error) {
+      console.error('Erreur Resend (email interne):', result1.error);
+      return res.status(500).json({ error: 'Erreur lors de l\'envoi du message.' });
+    }
+
+    const result2 = await resend.emails.send({
       from: 'Seculoca <contact@seculoca.fr>',
       to: email,
       subject: 'Nous avons bien reçu votre message',
@@ -46,12 +51,17 @@ router.post('/', async (req, res) => {
       `
     });
 
+    if (result2.error) {
+      console.error('Erreur Resend (email confirmation):', result2.error);
+      // On ne bloque pas ici, l'email principal est parti
+    }
+
     res.json({ success: true, message: 'Message envoyé avec succès.' });
 
-  } catch (error) {
+ } catch (error) {
     console.error('Erreur envoi email:', error);
     res.status(500).json({ error: 'Erreur lors de l\'envoi du message.' });
-  }
+ }
 });
 
 module.exports = router;
