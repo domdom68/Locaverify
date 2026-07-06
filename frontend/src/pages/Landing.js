@@ -210,10 +210,10 @@ export default function Landing() {
           </div>
           <div className="hero-card">
             <div className="counter-grid">
-              <div className="counter-box"><span className="counter-number">4 <span>237</span></span><span className="counter-label">Annonces analysées</span></div>
-              <div className="counter-box"><span className="counter-number"><span>68</span>%</span><span className="counter-label">Arnaques détectées</span></div>
-              <div className="counter-box"><span className="counter-number"><span>12</span>k€</span><span className="counter-label">Pertes évitées moy.</span></div>
-              <div className="counter-box"><span className="counter-number"><span>4.8</span>★</span><span className="counter-label">Note utilisateurs</span></div>
+              <div className="counter-box"><span className="counter-number">1 / <span>3</span></span><span className="counter-label">Candidats locataires confrontés à une arnaque</span></div>
+              <div className="counter-box"><span className="counter-number"><span>12 000</span>€</span><span className="counter-label">Perdus en moyenne par victime</span></div>
+              <div className="counter-box"><span className="counter-number"><span>94</span>%</span><span className="counter-label">Précision de détection</span></div>
+              <div className="counter-box"><span className="counter-number"><span>30</span> sec</span><span className="counter-label">Pour obtenir votre score</span></div>
             </div>
           </div>
         </div>
