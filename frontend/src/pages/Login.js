@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
 export default function Login() {
-  const [mode, setMode] = useState('login'); // 'login' | 'register'
+  const [searchParams] = useSearchParams();
+  const [mode, setMode] = useState(searchParams.get('mode') === 'register' ? 'register' : 'login'); // 'login' | 'register'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);

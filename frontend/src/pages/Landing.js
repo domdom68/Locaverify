@@ -174,12 +174,12 @@ export default function Landing() {
 
       {/* NAV */}
       <nav className="landing-nav">
-        <div className="logo">
+        <Link to="/" className="logo">
           <div className="logo-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/></svg>
           </div>
           <span className="logo-text">Secu<span>loca</span></span>
-        </div>
+        </Link>
         <ul className="nav-links">
           <li><a href="#comment">Comment ça marche</a></li>
           <li><a href="#tarifs">Tarifs</a></li>
@@ -188,7 +188,6 @@ export default function Landing() {
         </ul>
         <div style={{display:'flex',gap:'10px'}}>
           <Link to="/connexion" className="btn btn-outline">Se connecter</Link>
-          <Link to="/connexion" className="btn btn-primary">Essai gratuit</Link>
         </div>
       </nav>
 
@@ -200,8 +199,8 @@ export default function Landing() {
             <h1>Louez en toute<br/><em>confiance</em></h1>
             <p><strong>Seculoca</strong> analyse vos annonces de location en quelques secondes et détecte les signaux potentiels d'arnaque.</p>
             <div className="hero-cta">
-              <Link to="/inscription" className="btn btn-primary btn-large">✓ Analyser une annonce gratuitement</Link>
-              <a href="#demo" className="btn btn-outline" style={{color:'white',borderColor:'rgba(255,255,255,0.3)'}}>Voir la démo</a>
+              <Link to="/connexion?mode=register" className="btn btn-primary btn-large">✓ Analyser une annonce gratuitement</Link>
+              <Link to="/demo" className="btn btn-outline" style={{color:'white',borderColor:'rgba(255,255,255,0.3)'}}>Voir la démo</Link>
             </div>
             <div className="hero-trust">
               <div className="trust-item">🛡️ Conforme RGPD</div>
@@ -220,15 +219,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* STATS */}
-      <div className="stats-band">
-        <div className="stats-inner">
-          <div className="stat"><span className="stat-num">1 / 3</span><div className="stat-desc">des candidats locataires<br/>confrontés à une arnaque</div></div>
-          <div className="stat"><span className="stat-num">12 000 €</span><div className="stat-desc">perdus en moyenne<br/>par victime</div></div>
-          <div className="stat"><span className="stat-num">94 %</span><div className="stat-desc">de précision de détection<br/>avec <strong>Seculoca</strong></div></div>
-          <div className="stat"><span className="stat-num">30 sec</span><div className="stat-desc">pour obtenir<br/>votre score de risque</div></div>
-        </div>
-      </div>
+   
 
       {/* HOW IT WORKS */}
       <section id="comment">
@@ -241,8 +232,7 @@ export default function Landing() {
             <div className="step-card"><div className="step-num">02</div><div className="step-icon">🤖</div><h3>L'IA analyse</h3><p>Notre modèle examine plus de 40 signaux d'alerte : prix, localisation, formulations suspectes, demandes inhabituelles.</p></div>
             <div className="step-card"><div className="step-num">03</div><div className="step-icon">🎯</div><h3>Recevez votre score</h3><p>Un score de risque clair de 0 à 100, avec les signaux détectés expliqués en français.</p></div>
           </div>
-        </div>
-      </section>
+        </div>      </section>
 
       {/* PRICING */}
       <section id="tarifs">
@@ -253,8 +243,8 @@ export default function Landing() {
           <div className="pricing-grid">
             <div className="plan-card">
               <div className="plan-name">Découverte</div>
-              <div className="plan-price">0 <sup>€</sup></div>
-              <div className="plan-period">Pour toujours gratuit</div>
+             <div className="plan-price">0 <sup>€</sup></div>
+              <div className="plan-period">&nbsp;</div>
               <div className="plan-divider"/>
               <ul className="plan-features">
                 <li><span className="check">✓</span> 5 analyses</li>
@@ -263,11 +253,11 @@ export default function Landing() {
                 <li><span className="cross">✗</span> Rapport détaillé</li>
                 <li><span className="cross">✗</span> Historique</li>
               </ul>
-              <Link to="/inscription" className="btn btn-outline" style={{width:'100%',justifyContent:'center'}}>Commencer</Link>
+              <Link to="/connexion?mode=register" className="btn btn-outline" style={{width:'100%',justifyContent:'center'}}>Commencer</Link>
             </div>
             <div className="plan-card">
               <div className="plan-name">Essentiel</div>
-              <div className="plan-price">4,99 <sup>€</sup></div>
+              <div className="plan-price">9,99 <sup>€</sup></div>
               <div className="plan-period">par mois</div>
               <div className="plan-divider"/>
               <ul className="plan-features">
@@ -277,13 +267,13 @@ export default function Landing() {
                 <li><span className="check">✓</span> Historique 30 jours</li>
                 <li><span className="cross">✗</span> Export PDF</li>
               </ul>
-              <Link to="/inscription" className="btn btn-outline" style={{width:'100%',justifyContent:'center'}}>Choisir</Link>
+              <Link to="/connexion?mode=register" className="btn btn-outline" style={{width:'100%',justifyContent:'center'}}>Choisir</Link>
             </div>
             <div className="plan-card featured">
               <div className="plan-badge">Le plus populaire</div>
               <div className="plan-name">Max</div>
               <div className="plan-price">29,99 <sup>€</sup></div>
-              <div className="plan-period">par an <span style={{background:'#E8F5E9',color:'#2E7D32',fontWeight:'700',fontSize:'0.75rem',padding:'2px 8px',borderRadius:'100px',marginLeft:'6px'}}>– 50% vs mensuel</span></div>
+              <div className="plan-period">par mois</div>
               <div className="plan-divider"/>
               <ul className="plan-features">
                 <li><span className="check">✓</span> 60 analyses / mois</li>
@@ -292,12 +282,12 @@ export default function Landing() {
                 <li><span className="check">✓</span> Historique illimité</li>
                 <li><span className="check">✓</span> Export PDF</li>
               </ul>
-              <Link to="/inscription" className="btn btn-primary" style={{width:'100%',justifyContent:'center'}}>Choisir</Link>
+              <Link to="/connexion?mode=register" className="btn btn-primary" style={{width:'100%',justifyContent:'center'}}>Choisir</Link>
             </div>
             <div className="plan-card">
               <div className="plan-name">Pro</div>
-              <div className="plan-price">99 <sup>€</sup></div>
-              <div className="plan-period">par an <span style={{background:'#E8F5E9',color:'#2E7D32',fontWeight:'700',fontSize:'0.75rem',padding:'2px 8px',borderRadius:'100px',marginLeft:'6px'}}>Meilleure valeur</span></div>
+             <div className="plan-price">99,99 <sup>€</sup></div>
+              <div className="plan-period">par mois</div>
               <div className="plan-divider"/>
               <ul className="plan-features">
                 <li><span className="check">✓</span> Analyses illimitées</li>
@@ -307,7 +297,7 @@ export default function Landing() {
                 <li><span className="check">✓</span> Export PDF</li>
                 <li><span className="check">✓</span> Support prioritaire</li>
               </ul>
-              <Link to="/inscription" className="btn btn-outline" style={{width:'100%',justifyContent:'center'}}>Choisir</Link>
+              <Link to="/connexion?mode=register" className="btn btn-outline" style={{width:'100%',justifyContent:'center'}}>Choisir</Link>
             </div>
           </div>
         </div>
@@ -398,7 +388,7 @@ export default function Landing() {
         <div className="section-inner" style={{textAlign:'center'}}>
           <h2>Votre prochaine location<br/>mérite une vérification.</h2>
           <p>Rejoignez des milliers de locataires qui vérifient avant de payer.</p>
-          <Link to="/inscription" className="btn btn-white btn-large">Analyser une annonce maintenant →</Link>
+          <Link to="/connexion?mode=register" className="btn btn-white btn-large">Analyser une annonce maintenant →</Link>
         </div>
       </section>
 
