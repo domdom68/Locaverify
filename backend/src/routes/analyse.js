@@ -10,7 +10,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // POST /api/analyse
 router.post('/', requireAuth, async (req, res) => {
-  const { url, description, prix, localisation, proprietaire, imageUrls } = req.body;
+  const { url, description, prix, localisation, proprietaire, telephone, imageUrls } = req.body;
   const userId = req.user.id;
 
   if (!description || !localisation) {
