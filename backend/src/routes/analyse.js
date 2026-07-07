@@ -38,6 +38,7 @@ ANNONCE :
 - Localisation : ${localisation}
 - Prix mensuel : ${prix || 'non renseigné'} €
 - Propriétaire / contact : ${proprietaire || 'non renseigné'}
+- Téléphone du contact : ${telephone || 'non renseigné'}
 - URL : ${url || 'non renseignée'}
 - Texte : """${description}"""
 
@@ -53,9 +54,12 @@ Format JSON attendu :
     {"label": "Mode de paiement", "status": "<ok|warning|danger|info>", "detail": "<explication>"},
     {"label": "Présence du propriétaire", "status": "<ok|warning|danger|info>", "detail": "<explication>"},
     {"label": "Cohérence de l'annonce", "status": "<ok|warning|danger|info>", "detail": "<explication>"},
-    {"label": "Qualité rédactionnelle", "status": "<ok|warning|danger|info>", "detail": "<explication>"}
+    {"label": "Qualité rédactionnelle", "status": "<ok|warning|danger|info>", "detail": "<explication>"},
+    {"label": "Comportement de contact", "status": "<ok|warning|danger|info>", "detail": "<explication>"}
   ]
-}`,
+}
+
+Pour le critère "Comportement de contact", évalue en particulier : le refus d'appel vocal (uniquement SMS/WhatsApp), une demande de basculer immédiatement vers une messagerie externe, ou un numéro à l'étranger incohérent avec une annonce locale. Si aucune information sur le comportement de contact n'est disponible dans le texte, indique un statut "info" avec le détail "Donnée non disponible avec les informations fournies".`,
         }],
         temperature: 0.3,
         max_tokens: 1500,
@@ -87,7 +91,7 @@ Format JSON attendu :
       })(),
 
       // 3. Community database check
-      runCommunityChecks({ url, iban: null, phone: null, email: null }),
+      runCommunityChecks({ url, iban: null, phone: telephone || null, email: null }),
     ]);
 
     // ── Parse AI result ──────────────────────────────────────
@@ -163,7 +167,7 @@ Format JSON attendu :
     updateCommunityDB({
       url,
       iban: null,
-      phone: null,
+      phone: telephone || null,
       email: null,
       riskScore: adjustedScore,
       isScam: isHighRisk,

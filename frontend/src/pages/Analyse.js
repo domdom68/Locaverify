@@ -47,7 +47,7 @@ function CriterionRow({ icon, label, status, detail }) {
   );
 }
 
-const EMPTY_FORM = { url: '', description: '', prix: '', localisation: '', proprietaire: '' };
+const EMPTY_FORM = { url: '', description: '', prix: '', localisation: '', proprietaire: '', telephone: '' };
 
 export default function Analyse() {
   const { profile, refreshProfile } = useAuth();
@@ -196,6 +196,11 @@ export default function Analyse() {
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Nom du propriétaire / contact</label>
                   <input type="text" value={form.proprietaire} onChange={update('proprietaire')} placeholder="Jean Dupont"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"/>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Numéro de téléphone du contact</label>
+                  <input type="tel" value={form.telephone} onChange={update('telephone')} placeholder="06 12 34 56 78"
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"/>
                 </div>
                 <div>
