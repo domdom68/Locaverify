@@ -158,9 +158,7 @@ Pour le critère "Comportement de contact", évalue en particulier : le refus d'
     if (saveError) throw new Error('Erreur sauvegarde : ' + saveError.message);
 
     // ── Deduct credit ────────────────────────────────────────
-    await supabase.from('profiles')
-      .update({ credits: profile.credits - 1 })
-      .eq('id', userId);
+    await deductOneAnalysis(userId, planState.plan);
 
     // ── Update community DB (async, non-blocking) ────────────
     const isHighRisk = adjustedScore >= 70;
