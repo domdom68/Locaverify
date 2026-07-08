@@ -212,7 +212,7 @@ export default function Rapport() {
     let y = 44;
     doc.setTextColor(30, 41, 59); doc.setFontSize(14); doc.setFont('helvetica', 'bold');
     doc.text('Informations', 14, y); y += 8;
-    [['Localisation', analyse.localisation], ['Prix', analyse.prix ? `${analyse.prix} €/mois` : '—'],
+    [['Localisation', analyse.localisation], ['Prix', analyse.prix ? `${analyse.prix} €/${analyse.duree_prix || 'mois'}` : '—'],
      ['Propriétaire', analyse.proprietaire], ['URL', analyse.url]].forEach(([k, v]) => {
       if (!v) return;
       doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(100, 116, 139);
@@ -301,7 +301,7 @@ export default function Rapport() {
 
       {/* Info grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-        {[['Localisation', analyse.localisation], ['Prix mensuel', analyse.prix ? `${analyse.prix} €` : null],
+        {[['Localisation', analyse.localisation], ['Prix', analyse.prix ? `${analyse.prix} € / ${analyse.duree_prix || 'mois'}` : null],
           ['Propriétaire', analyse.proprietaire], ['URL', analyse.url ? 'Fournie' : null]].map(([label, val]) => (
           <div key={label} className="bg-slate-50 rounded-xl p-3.5">
             <p className="text-xs text-slate-400 font-medium mb-1">{label}</p>

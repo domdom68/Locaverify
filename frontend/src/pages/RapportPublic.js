@@ -67,7 +67,7 @@ export default function RapportPublic() {
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {[['Localisation', analyse.localisation], ['Prix', analyse.prix ? `${analyse.prix} €/mois` : null],
+              {[['Localisation', analyse.localisation], ['Prix', analyse.prix ? `${analyse.prix} €/${analyse.duree_prix || 'mois'}` : null],
                 ['Analysé le', new Date(analyse.created_at).toLocaleDateString('fr-FR')]].map(([l, v]) => (
                 <div key={l} className="bg-slate-50 rounded-xl p-3.5">
                   <p className="text-xs text-slate-400 font-medium mb-1">{l}</p>
