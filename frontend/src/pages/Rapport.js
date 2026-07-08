@@ -313,7 +313,7 @@ export default function Rapport() {
       {/* Criteria */}
       <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden mb-4">
         <div className="px-6 py-4 border-b border-slate-100">
-          <h2 className="font-semibold text-slate-900 text-sm">Détail de l'analyse — 7 critères</h2>
+          <h2 className="font-semibold text-slate-900 text-sm">Détail de l'analyse — {criteria.length} critères</h2>
         </div>
         <div className="divide-y divide-slate-50">
           {criteria.map((c, i) => {
