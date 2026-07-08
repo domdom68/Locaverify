@@ -8,7 +8,7 @@ const FAQS = [
   },
   {
     q: "Comment fonctionne le système de crédits ?",
-    a: "Chaque analyse consomme 1 crédit. Vous achetez des crédits en avance (système prépayé), au choix parmi 3 packs : 10 analyses à 5 €, 20 analyses à 10 €, ou 50 analyses à 15 €. Les crédits sont valables 1 an et ne s'abonnent pas — vous payez uniquement ce que vous utilisez."
+    a: "Seculoca propose 4 formules : Découverte (gratuit, 5 analyses), Essentiel (9,99€/mois, 20 analyses/mois), Max (29,99€/mois, 60 analyses/mois, notre offre la plus populaire), et Pro (99,99€/mois, analyses illimitées, export PDF et support prioritaire). Chaque formule supérieure inclut un rapport plus complet et un historique plus long."
   },
   {
     q: "Que se passe-t-il quand je n'ai plus de crédits ?",
@@ -96,7 +96,7 @@ export default function FAQ() {
         <p className="text-white font-semibold text-base mb-1">Vous n'avez pas trouvé votre réponse ?</p>
         <p className="text-slate-400 text-sm mb-4">Notre équipe répond sous 24h ouvrées.</p>
         <a
-          href="mailto:support@seculoca.fr"
+          href="mailto:contact@seculoca.fr"
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 transition-colors"
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="3" width="12" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><path d="M1 5L7 8.5L13 5" stroke="currentColor" strokeWidth="1.5"/></svg>
