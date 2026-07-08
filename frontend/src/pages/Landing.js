@@ -230,7 +230,7 @@ export default function Landing() {
           <p className="section-sub">Pas besoin d'être expert. Copiez le texte de l'annonce, notre IA fait le reste.</p>
           <div className="how-grid">
             <div className="step-card"><div className="step-num">01</div><div className="step-icon">📋</div><h3>Copiez l'annonce</h3><p>Copiez le texte de l'annonce depuis n'importe quelle plateforme — Leboncoin, SeLoger, PAP, Facebook Marketplace…</p></div>
-            <div className="step-card"><div className="step-num">02</div><div className="step-icon">🤖</div><h3>L'IA analyse</h3><p>Notre modèle examine plus de 40 signaux d'alerte : prix, localisation, formulations suspectes, demandes inhabituelles.</p></div>
+            <div className="step-card"><div className="step-num">02</div><div className="step-icon">🤖</div><h3>L'IA analyse</h3><p>Notre modèle examine de nombreux signaux d'alerte : prix, localisation, formulations suspectes, demandes inhabituelles.</p></div>
             <div className="step-card"><div className="step-num">03</div><div className="step-icon">🎯</div><h3>Recevez votre score</h3><p>Un score de risque clair de 0 à 100, avec les signaux détectés expliqués en français.</p></div>
           </div>
         </div>      </section>
@@ -311,7 +311,7 @@ export default function Landing() {
           <h2 className="section-title">Tout ce que vous voulez savoir</h2>
           <p className="section-sub">Une question sans réponse ? Écrivez-nous à contact@seculoca.fr</p>
           <div className="faq-grid">
-            <div className="faq-item"><div className="faq-q">Comment <strong>Seculoca</strong> détecte-t-il les arnaques ?</div><div className="faq-a">Notre IA analyse le texte de l'annonce en cherchant plus de 40 signaux d'alerte connus : formulations suspectes, prix anormaux, demandes de paiement non sécurisées…</div></div>
+            <div className="faq-item"><div className="faq-q">Comment <strong>Seculoca</strong> détecte-t-il les arnaques ?</div><div className="faq-a">Notre IA analyse le texte de l'annonce en croisant plusieurs indicateurs de risque connus : formulations suspectes, prix anormaux, demandes de paiement non sécurisées…</div></div>
             <div className="faq-item"><div className="faq-q">Sur quelles plateformes puis-je l'utiliser ?</div><div className="faq-a">Sur toutes. <strong>Seculoca</strong> fonctionne avec n'importe quelle annonce textuelle : Leboncoin, SeLoger, PAP, Logic-Immo, Facebook Marketplace…</div></div>
             <div className="faq-item"><div className="faq-q">Mes données sont-elles conservées ?</div><div className="faq-a">Non. Le contenu des annonces analysées n'est pas conservé après le traitement. Seules vos métadonnées de compte sont stockées, conformément au RGPD.</div></div>
             <div className="faq-item"><div className="faq-q">Le score est-il toujours fiable ?</div><div className="faq-a"><strong>Seculoca</strong> affiche un score de risque basé sur des indicateurs pertinents. Un score élevé doit alerter, pas remplacer votre jugement.</div></div>

@@ -20,7 +20,7 @@ const FAQS = [
   },
   {
     q: "L'analyse IA est-elle fiable à 100 % ?",
-    a: "Seculoca est un outil d'aide à la décision, pas un oracle infaillible. Le score de risque est calculé par GPT-4o sur 7 critères objectifs, mais une arnaque sophistiquée peut parfois tromper l'analyse, et une annonce légitime peut obtenir un score modéré si elle présente des formulations inhabituelles. Le rapport indique toujours les raisons du score pour que vous puissiez exercer votre propre jugement."
+    a: "Seculoca est un outil d'aide à la décision, pas un oracle infaillible. Le score de risque est calculé par GPT-4o sur la base de plusieurs critères objectifs, mais une arnaque sophistiquée peut parfois tromper l'analyse, et une annonce légitime peut obtenir un score modéré si elle présente des formulations inhabituelles. Le rapport indique toujours les raisons du score pour que vous puissiez exercer votre propre jugement."
   },
   {
     q: "Mes données personnelles et les annonces analysées sont-elles stockées ?",
@@ -28,7 +28,7 @@ const FAQS = [
   },
   {
     q: "Comment récupérer mon rapport en PDF ?",
-    a: "Après chaque analyse, le rapport complet est disponible sur la page de résultats. Un bouton Télécharger PDF génère instantanément un document formaté contenant le score de risque, le détail des 7 critères analysés, le résumé IA et notre recommandation. Ce PDF est également accessible à tout moment depuis votre historique dans le tableau de bord."
+    a: "Après chaque analyse, le rapport complet est disponible sur la page de résultats. Un bouton Télécharger PDF génère instantanément un document formaté contenant le score de risque, le détail des critères analysés, le résumé IA et notre recommandation. Ce PDF est également accessible à tout moment depuis votre historique dans le tableau de bord."
   },
   {
     q: "Puis-je analyser la même annonce plusieurs fois ?",

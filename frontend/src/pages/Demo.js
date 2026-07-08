@@ -198,7 +198,7 @@ export default function Demo() {
             {/* Criteria */}
             <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
               <div className="px-5 py-3.5 border-b border-slate-100">
-                <p className="font-semibold text-slate-900 text-sm">Détail des 7 critères</p>
+                <p className="font-semibold text-slate-900 text-sm">Détail de l'analyse — {result.criteria?.length || 0} critères</p>
               </div>
               <div className="divide-y divide-slate-50">
                 {result.criteria?.map((c, i) => {
