@@ -10,8 +10,11 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // POST /api/analyse
 router.post('/', requireAuth, async (req, res) => {
-  const { url, description, prix, localisation, proprietaire, telephone, imageUrls } = req.body;
+  const { url, description, prix, duree_prix, localisation, proprietaire, telephone, imageUrls } = req.body;
   const userId = req.user.id;
+
+  const dureePrixMap = { jour: 'jour', semaine: 'semaine', mois: 'mois' };
+  const dureePrixLabel = dureePrixMap[duree_prix] || 'mois';
 
   if (!description || !localisation) {
     return res.status(400).json({ error: 'Champs obligatoires manquants : description, localisation.' });
@@ -36,7 +39,7 @@ router.post('/', requireAuth, async (req, res) => {
 
 ANNONCE :
 - Localisation : ${localisation}
-- Prix mensuel : ${prix || 'non renseigné'} €
+- Prix (par ${dureePrixLabel}) : ${prix || 'non renseigné'} €
 - Propriétaire / contact : ${proprietaire || 'non renseigné'}
 - Téléphone du contact : ${telephone || 'non renseigné'}
 - URL : ${url || 'non renseignée'}
@@ -59,7 +62,9 @@ Format JSON attendu :
   ]
 }
 
-Pour le critère "Comportement de contact", évalue en particulier : le refus d'appel vocal (uniquement SMS/WhatsApp), une demande de basculer immédiatement vers une messagerie externe, ou un numéro à l'étranger incohérent avec une annonce locale. Si aucune information sur le comportement de contact n'est disponible dans le texte, indique un statut "info" avec le détail "Donnée non disponible avec les informations fournies".`,
+Pour le critère "Comportement de contact", évalue en particulier : le refus d'appel vocal (uniquement SMS/WhatsApp), une demande de basculer immédiatement vers une messagerie externe, ou un numéro à l'étranger incohérent avec une annonce locale. Si aucune information sur le comportement de contact n'est disponible dans le texte, indique un statut "info" avec le détail "Donnée non disponible avec les informations fournies".
+
+Pour le critère "Prix vs marché local", compare le prix indiqué avec les loyers du marché en tenant compte de la période de facturation précisée (jour, semaine ou mois : ${dureePrixLabel}). Ne compare jamais directement un prix journalier ou hebdomadaire à un loyer mensuel classique ; ramène-le à un équivalent mensuel avant de juger s'il est cohérent avec le marché local.`,
         }],
         temperature: 0.3,
         max_tokens: 1500,
