@@ -47,7 +47,7 @@ function CriterionRow({ icon, label, status, detail }) {
   );
 }
 
-const EMPTY_FORM = { url: '', description: '', prix: '', localisation: '', proprietaire: '', telephone: '' };
+const EMPTY_FORM = { url: '', description: '', prix: '', localisation: '', proprietaire: '', telephone: '', duree_prix: 'mois'  };
 
 export default function Analyse() {
   const { profile, refreshProfile } = useAuth();
@@ -183,10 +183,18 @@ export default function Analyse() {
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Prix / mois (€)</label>
-                    <input type="number" value={form.prix} onChange={update('prix')} required placeholder="850"
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"/>
-                  </div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Prix (€)</label>
+                      <div className="flex gap-2">
+                        <input type="number" value={form.prix} onChange={update('prix')} required placeholder="850"
+                          className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"/>
+                        <select value={form.duree_prix} onChange={update('duree_prix')}
+                          className="px-3 py-3 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+                          <option value="jour">/ jour</option>
+                          <option value="semaine">/ semaine</option>
+                          <option value="mois">/ mois</option>
+                        </select>
+                      </div>
+                    </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">Ville / Localisation</label>
                     <input type="text" value={form.localisation} onChange={update('localisation')} required placeholder="Paris 15e"

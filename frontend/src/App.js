@@ -4,6 +4,8 @@ import { AuthProvider, useAuth } from './hooks/useAuth';
 import Layout from './components/Layout';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
+import MotDePasseOublie from './pages/MotDePasseOublie';
+import ReinitialiserMotDePasse from './pages/ReinitialiserMotDePasse';
 import Dashboard from './pages/Dashboard';
 import Analyse from './pages/Analyse';
 import Paiement from './pages/Paiement';
@@ -18,7 +20,7 @@ import './index.css';
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/></div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div>;
   return user ? children : <Navigate to="/connexion" replace />;
 }
 function PublicRoute({ children }) {
@@ -38,7 +40,8 @@ export default function App() {
           <Route path="/rapport/public/:token" element={<RapportPublic />} />
           <Route path="/faq" element={<FAQ />} />
           <Route path="/connexion" element={<PublicRoute><Login /></PublicRoute>} />
-
+          <Route path="/mot-de-passe-oublie" element={<PublicRoute><MotDePasseOublie /></PublicRoute>} />
+          <Route path="/reinitialiser-mot-de-passe" element={<ReinitialiserMotDePasse />} />
           {/* Private */}
           <Route path="/dashboard" element={<PrivateRoute><Layout><Dashboard /></Layout></PrivateRoute>} />
           <Route path="/analyser" element={<PrivateRoute><Layout><Analyse /></Layout></PrivateRoute>} />
