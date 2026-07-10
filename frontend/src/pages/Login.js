@@ -10,6 +10,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -82,16 +83,37 @@ export default function Login() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Mot de passe</label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
-                minLength={8}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-              />
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-sm font-medium text-slate-700">Mot de passe</label>
+                {mode === 'login' && (
+                  <Link to="/mot-de-passe-oublie" className="text-xs text-blue-600 hover:text-blue-700 font-medium">
+                    Mot de passe oublié ?
+                  </Link>
+                )}
+              </div>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  minLength={8}
+                  className="w-full px-4 py-3 pr-11 rounded-xl border border-slate-200 bg-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(s => !s)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M2 2L14 14" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><path d="M6.6 6.6C6.2 7 6 7.5 6 8C6 9.1 6.9 10 8 10C8.5 10 9 9.8 9.4 9.4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><path d="M4 4.5C2.6 5.5 1.5 7 1 8C2.2 10.5 4.8 12.5 8 12.5C9.2 12.5 10.3 12.2 11.3 11.7M13 10C13.7 9.3 14.4 8.6 15 8C13.8 5.5 11.2 3.5 8 3.5C7.6 3.5 7.2 3.6 6.8 3.6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.2 5.5 4.8 3.5 8 3.5C11.2 3.5 13.8 5.5 15 8C13.8 10.5 11.2 12.5 8 12.5C4.8 12.5 2.2 10.5 1 8Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/><circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.3"/></svg>
+                  )}
+                </button>
+              </div>
               {mode === 'register' && <p className="text-xs text-slate-400 mt-1">Minimum 8 caractères</p>}
             </div>
 
@@ -122,7 +144,6 @@ export default function Login() {
         <p className="text-center text-xs text-slate-400 mt-5">
           <Link to="/" className="hover:text-slate-600 transition-colors">← Retour à l'accueil</Link>
         </p>
-      </div>
-    </div>
+      </div></div>
   );
 }
