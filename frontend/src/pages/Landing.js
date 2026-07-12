@@ -170,6 +170,10 @@ export default function Landing() {
         @media (max-width: 600px) {
           .pricing-grid { grid-template-columns: 1fr; }
           .nav-links { display: none; }
+          .landing-nav { padding: 0 4%; }
+          .logo-text { font-size: 1.05rem; }
+          .logo-icon { width: 32px; height: 32px; }
+          .btn.btn-outline { padding: 8px 14px; font-size: 0.82rem; white-space: nowrap; }
         }
       `}</style>
 
