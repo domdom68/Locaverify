@@ -29,6 +29,13 @@ export default function Dashboard() {
 
   const credits = profile?.credits ?? 0;
 
+  async function handleDelete(id) {
+    if (!window.confirm('Supprimer definitivement cette analyse ?')) return;
+    const { error } = await supabase.from('analyses').delete().eq('id', id);
+    if (!error) setAnalyses(prev => prev.filter(a => a.id !== id));
+    else alert('Erreur lors de la suppression : ' + error.message);
+  }
+
   return (
     <div className="animate-fadeIn">
       {/* Header row */}
@@ -118,6 +125,9 @@ export default function Dashboard() {
                   <Link to={`/rapport/${a.id}`} className="text-xs text-blue-600 font-medium hover:underline flex-shrink-0">
                     Voir →
                   </Link>
+                  <button onClick={() => handleDelete(a.id)} className="text-xs text-red-500 font-medium hover:underline flex-shrink-0">
+                    Supprimer
+                  </button>
                 </div>
               </div>
             ))}
