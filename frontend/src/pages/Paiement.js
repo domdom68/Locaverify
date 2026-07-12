@@ -17,30 +17,28 @@ const FREE_PACK = {
 
 const PRODUCTS = [
   {
-    id: 'pack', name: 'Pack Essentiel', price: '4,99 €',
-    badge: 'Paiement unique', badgeColor: 'bg-slate-100 text-slate-600',
-    highlight: false, isSubscription: false,
-    description: 'Pour une recherche ponctuelle',
-    features: ['10 analyses', 'Rapport PDF', 'Validité 1 an', 'Sans engagement'],
-    cta: 'Acheter le pack', perUnit: '0,50 € / analyse',
+    id: 'essentiel', name: 'Essentiel', price: '9,99 €',
+    badge: 'Pour débuter', badgeColor: 'bg-slate-100 text-slate-600',
+    highlight: false, isSubscription: true,
+    description: 'Pour une recherche régulière',
+    features: ['20 analyses / mois', 'Rapport PDF', 'Historique 30 jours'],
+    cta: 'Choisir — 9,99 €/mois',
   },
   {
-    id: 'solo', name: 'Solo', price: '29,99 €',
+    id: 'max', name: 'Max', price: '29,99 €',
     badge: 'Le plus populaire', badgeColor: 'bg-blue-100 text-blue-700',
     highlight: true, isSubscription: true,
     description: 'Pour les particuliers actifs',
-    features: ['Analyses illimitées*', 'Rapport PDF', 'Historique complet', 'Partage de rapport', 'Support email'],
-    cta: 'Souscrire — 29,99 €/an', perUnit: 'soit 2,50 €/mois',
-    footnote: '* Fair Use : 500 analyses/an',
+    features: ['60 analyses / mois', 'Rapport PDF', 'Historique illimité', 'Export PDF'],
+    cta: 'Choisir — 29,99 €/mois',
   },
   {
-    id: 'pro', name: 'Pro', price: '99 €',
+    id: 'pro', name: 'Pro', price: '99,99 €',
     badge: 'Professionnels', badgeColor: 'bg-purple-100 text-purple-700',
     highlight: false, isSubscription: true,
     description: 'Agents, juristes, associations',
-    features: ['Analyses illimitées*', 'Accès API REST', 'Export CSV historique', 'Support prioritaire', 'Facturation pro'],
-    cta: 'Souscrire — 99 €/an', perUnit: 'soit 8,25 €/mois',
-    footnote: '* Fair Use : 2 000 analyses/an',
+    features: ['Analyses illimitées', 'Accès API REST', 'Export CSV historique', 'Support prioritaire'],
+    cta: 'Choisir — 99,99 €/mois',
   },
 ];
 
@@ -234,25 +232,25 @@ export default function Paiement() {
             <thead>
               <tr className="bg-slate-50">
                 <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Fonctionnalité</th>
-                {['Découverte', 'Essentiel', 'Solo', 'Pro'].map(n => (
-                  <th key={n} className="px-4 py-3 text-slate-700 font-semibold text-xs text-center">{n}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {[
-                ['Nombre d\'analyses',    '5',          '10',         '500/an',       'Illimité'],
-                ['Rapport PDF',           '✅',          '✅',          '✅',            '✅'],
-                ['Reverse image search',  '✅',          '✅',          '✅',            '✅'],
-                ['Base communautaire',    '✅',          '✅',          '✅',            '✅'],
-                ['Historique analyses',   '30 jours',   '1 an',       'Illimité',     'Illimité'],
-                ['Partage de rapport',    '❌',          '✅',          '✅',            '✅'],
-                ['Export CSV',            '❌',          '❌',          '❌',            '✅'],
-                ['Accès API REST',        '❌',          '❌',          '❌',            '✅'],
-                ['Support',               '—',           'Email',      'Email',        'Prioritaire'],
-                ['Facturation pro',       '❌',          '❌',          '❌',            '✅'],
-                ['Prix',                  'Gratuit',    '4,99 €',     '29,99 €/an',   '99 €/an'],
-              ].map(([feature, ...vals]) => (
+                {['Découverte', 'Essentiel', 'Max', 'Pro'].map(n => (
+                <th key={n} className="px-4 py-3 text-slate-700 font-semibold text-xs text-center">{n}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {[
+              ['Nombre d\'analyses',    '5',          '20/mois',    '60/mois',      'Illimité'],
+              ['Rapport PDF',           '✅',          '✅',          '✅',            '✅'],
+              ['Reverse image search',  '✅',          '✅',          '✅',            '✅'],
+              ['Base communautaire',    '✅',          '✅',          '✅',            '✅'],
+              ['Historique analyses',   '30 jours',   '30 jours',   'Illimité',     'Illimité'],
+              ['Partage de rapport',    '❌',          '✅',          '✅',            '✅'],
+              ['Export CSV',            '❌',          '❌',          '❌',            '✅'],
+              ['Accès API REST',        '❌',          '❌',          '❌',            '✅'],
+              ['Support',               '—',          'Email',      'Email',        'Prioritaire'],
+              ['Facturation pro',       '❌',          '❌',          '❌',            '✅'],
+              ['Prix',                  'Gratuit',    '9,99 €/mois','29,99 €/mois', '99,99 €/mois'],
+                          ].map(([feature, ...vals]) => (
                 <tr key={feature} className="hover:bg-slate-50/50">
                   <td className="px-5 py-3 text-slate-700 font-medium">{feature}</td>
                   {vals.map((v, i) => (

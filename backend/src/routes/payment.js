@@ -7,29 +7,28 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // Product catalog — one-time packs + annual subscriptions
 const PRODUCTS = {
-  // One-time credit packs
-  pack: {
-    id: 'pack',
-    type: 'payment',
-    name: 'Pack Essentiel — 10 analyses',
-    priceId: process.env.STRIPE_PRICE_PACK,
-    credits: 10,
-    isSubscription: false,
-  },
-  // Annual subscriptions
-  solo: {
-    id: 'solo',
+  essentiel: {
+    id: 'essentiel',
     type: 'subscription',
-    name: 'Abonnement Solo — Illimité',
-    priceId: process.env.STRIPE_PRICE_SOLO,
+    name: 'Abonnement Essentiel',
+    priceId: process.env.STRIPE_PRICE_ESSENTIEL,
     credits: 0,
     isSubscription: true,
-    plan: 'solo',
+    plan: 'essentiel',
+  },
+  max: {
+    id: 'max',
+    type: 'subscription',
+    name: 'Abonnement Max',
+    priceId: process.env.STRIPE_PRICE_MAX,
+    credits: 0,
+    isSubscription: true,
+    plan: 'max',
   },
   pro: {
     id: 'pro',
     type: 'subscription',
-    name: 'Abonnement Pro — Illimité + API',
+    name: 'Abonnement Pro',
     priceId: process.env.STRIPE_PRICE_PRO,
     credits: 0,
     isSubscription: true,

@@ -13,10 +13,10 @@
 const { supabase } = require('../middleware/auth');
 
 const PLANS = {
-  free:  { name: 'Découverte',      fairUse: 5,    annual: false, hasApi: false, hasCsv: false },
-  pack:  { name: 'Pack Essentiel',  fairUse: null, annual: false, hasApi: false, hasCsv: false },
-  solo:  { name: 'Solo',            fairUse: 500,  annual: true,  hasApi: false, hasCsv: false },
-  pro:   { name: 'Pro',             fairUse: 2000, annual: true,  hasApi: true,  hasCsv: true  },
+  free:      { name: 'Découverte', fairUse: 5,   monthly: false, hasApi: false, hasCsv: false },
+  essentiel: { name: 'Essentiel',   fairUse: 20,  monthly: true,  hasApi: false, hasCsv: false },
+  max:       { name: 'Max',         fairUse: 60,  monthly: true,  hasApi: false, hasCsv: false },
+  pro:       { name: 'Pro',         fairUse: null, monthly: true, hasApi: true,  hasCsv: true  },
 };
 
 /**
@@ -37,7 +37,7 @@ async function getUserPlanState(userId) {
   const now = new Date();
 
   // ── Annual subscription ──────────────────────────────────────
-  if (plan === 'solo' || plan === 'pro') {
+  if (plan === 'essentiel' || plan === 'max' || plan === 'pro') {
     // Check expiry
     if (profile.plan_expires_at && new Date(profile.plan_expires_at) < now) {
       // Subscription expired — downgrade to free
@@ -51,7 +51,7 @@ async function getUserPlanState(userId) {
     const renewedAt = profile.plan_renewed_at ? new Date(profile.plan_renewed_at) : now;
     const usageThisYear = profile.analyses_this_year || 0;
 
-    if (usageThisYear >= planInfo.fairUse) {
+    if (planInfo.fairUse !== null && usageThisYear >= planInfo.fairUse) {
       return {
         plan, canAnalyse: false,
         reason: `Limite d'utilisation raisonnable atteinte (${planInfo.fairUse} analyses/an). Contactez le support si vous avez un besoin exceptionnel.`,
@@ -86,7 +86,7 @@ async function getUserPlanState(userId) {
  * Deduct one analysis from the user's quota (credit or yearly counter).
  */
 async function deductOneAnalysis(userId, plan) {
-  if (plan === 'solo' || plan === 'pro') {
+  if (plan === 'essentiel' || plan === 'max' || plan === 'pro') {
     // Increment yearly counter
     await supabase.rpc('increment_analyses_this_year', { p_user_id: userId });
   } else {
@@ -107,7 +107,7 @@ async function deductOneAnalysis(userId, plan) {
 async function activatePlan(userId, planKey) {
   const now = new Date();
   const expiresAt = new Date(now);
-  expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+  expiresAt.setMonth(expiresAt.getMonth() + 1);
 
   await supabase.from('profiles').update({
     plan: planKey,
