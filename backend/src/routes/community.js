@@ -35,7 +35,7 @@ router.post('/report', requireAuth, async (req, res) => {
     iban,
     phone,
     email,
-    scamType,      // 'fake_listing' | 'stolen_photos' | 'fake_owner' | 'advance_payment' | 'other'
+    scamTypes,     // array: ['fake_listing', 'stolen_photos', ...] - plusieurs types possibles
     description,   // free text, max 1000 chars
     evidenceText,  // message received, etc.
   } = req.body;
@@ -47,7 +47,8 @@ router.post('/report', requireAuth, async (req, res) => {
   }
 
   const VALID_TYPES = ['fake_listing','stolen_photos','fake_owner','advance_payment','other'];
-  if (scamType && !VALID_TYPES.includes(scamType)) {
+  const typesArray = Array.isArray(scamTypes) ? scamTypes : (scamTypes ? [scamTypes] : []);
+  if (typesArray.some(t => !VALID_TYPES.includes(t))) {
     return res.status(400).json({ error: 'Type d\'arnaque invalide.' });
   }
 
@@ -63,7 +64,7 @@ router.post('/report', requireAuth, async (req, res) => {
         iban_normalised: iban ? normaliseIban(iban) : null,
         phone_normalised: phone ? normalisePhone(phone) : null,
         email_normalised: email ? email.toLowerCase().trim() : null,
-        scam_type: scamType || 'other',
+        scam_type: typesArray.length ? typesArray.join(',') : 'other',
         description: description?.slice(0, 1000) || null,
         evidence_text: evidenceText?.slice(0, 2000) || null,
         status: 'pending',   // pending | verified | rejected
@@ -118,7 +119,7 @@ router.get('/recent', async (req, res) => {
 
     // Anonymise: mask part of URLs and remove personal data
     const safe = (data || []).map(r => ({
-      scamType: r.scam_type,
+      scamTypes: r.scam_type ? r.scam_type.split(',') : [],
       createdAt: r.created_at,
       description: r.description,
       urlDomain: r.url_raw ? (() => { try { return new URL(r.url_raw).hostname; } catch { return null; } })() : null,

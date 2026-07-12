@@ -27,7 +27,7 @@ export default function Communaute() {
   const [recent, setRecent] = useState([]);
   const [form, setForm] = useState({
     url: '', iban: '', phone: '', email: '',
-    scamType: '', description: '', evidenceText: '',
+    scamTypes: [], description: '', evidenceText: '',
     analyseId: searchParams.get('from') || '',
   });
   const [step, setStep] = useState('form'); // form | success
@@ -47,7 +47,7 @@ export default function Communaute() {
 
   const handleSubmit = async e => {
     e.preventDefault();
-    if (!form.scamType) { setError('Sélectionnez un type d\'arnaque.'); return; }
+    if (form.scamTypes.length === 0) { setError('Sélectionnez au moins un type d\'arnaque.'); return; }
     if (!form.url && !form.iban && !form.phone && !form.email) {
       setError('Renseignez au moins un élément identifiant (URL, IBAN, téléphone ou email).'); return;
     }
@@ -103,7 +103,7 @@ export default function Communaute() {
             <Link to="/dashboard" className="px-5 py-2.5 rounded-xl bg-green-600 text-white font-semibold text-sm hover:bg-green-700 transition-colors">
               Tableau de bord
             </Link>
-            <button onClick={() => { setStep('form'); setForm({ url:'',iban:'',phone:'',email:'',scamType:'',description:'',evidenceText:'',analyseId:'' }); }}
+            <button onClick={() => { setStep('form'); setForm({ url:'',iban:'',phone:'',email:'',scamTypes:[],description:'',evidenceText:'',analyseId:'' }); }}
               className="px-5 py-2.5 rounded-xl border border-green-300 text-green-700 font-medium text-sm hover:bg-green-100 transition-colors">
               Nouveau signalement
             </button>
@@ -121,16 +121,26 @@ export default function Communaute() {
             <div>
               <p className="text-sm font-medium text-slate-700 mb-3">Type d'arnaque</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {SCAM_TYPES.map(t => (
-                  <button key={t.key} type="button" onClick={() => setForm(f => ({ ...f, scamType: t.key }))}
-                    className={`flex items-start gap-3 p-3.5 rounded-xl border-2 text-left transition-all ${form.scamType === t.key ? 'border-blue-400 bg-blue-50' : 'border-slate-200 hover:border-slate-300'}`}>
-                    <span className="text-xl flex-shrink-0">{t.icon}</span>
-                    <div>
-                      <p className={`text-sm font-semibold ${form.scamType === t.key ? 'text-blue-800' : 'text-slate-800'}`}>{t.label}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{t.desc}</p>
-                    </div>
-                  </button>
-                ))}
+                {SCAM_TYPES.map(t => {
+                  const isSelected = form.scamTypes.includes(t.key);
+                  const toggle = () => setForm(f => ({
+                    ...f,
+                    scamTypes: isSelected ? f.scamTypes.filter(k => k !== t.key) : [...f.scamTypes, t.key],
+                  }));
+                  return (
+                    <button key={t.key} type="button" onClick={toggle}
+                      className={`flex items-start gap-3 p-3.5 rounded-xl border-2 text-left transition-all ${isSelected ? 'border-blue-400 bg-blue-50' : 'border-slate-200 hover:border-slate-300'}`}>
+                      <span className={`w-4 h-4 mt-0.5 rounded flex-shrink-0 border-2 flex items-center justify-center ${isSelected ? 'bg-blue-600 border-blue-600' : 'border-slate-300'}`}>
+                        {isSelected && <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M3 8L6.5 11.5L13 4.5" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      </span>
+                      <span className="text-xl flex-shrink-0">{t.icon}</span>
+                      <div>
+                        <p className={`text-sm font-semibold ${isSelected ? 'text-blue-800' : 'text-slate-800'}`}>{t.label}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">{t.desc}</p>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -220,13 +230,13 @@ export default function Communaute() {
           </div>
           <div className="divide-y divide-slate-50">
             {recent.slice(0, 8).map((r, i) => {
-              const type = SCAM_TYPES.find(t => t.key === r.scamType);
+              const types = (r.scamTypes || []).map(key => SCAM_TYPES.find(t => t.key === key)).filter(Boolean);
               return (
                 <div key={i} className="flex items-start gap-3 px-5 py-3.5">
-                  <span className="text-lg flex-shrink-0 mt-0.5">{type?.icon || '⚠️'}</span>
+                  <span className="text-lg flex-shrink-0 mt-0.5">{types.length ? types.map(t => t.icon).join('') : '⚠️'}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-semibold text-slate-800">{type?.label || r.scamType}</span>
+                      <span className="text-xs font-semibold text-slate-800">{types.length ? types.map(t => t.label).join(', ') : 'Type inconnu'}</span>
                       {r.urlDomain && <span className="text-xs text-slate-400">· {r.urlDomain}</span>}
                     </div>
                     {r.description && <p className="text-xs text-slate-500 mt-0.5 truncate">{r.description}</p>}
