@@ -1,4 +1,4 @@
-const APP_URL = 'https://seculoca.vercel.app';
+const APP_URL = 'https://seculoca.fr';
 function injectButton() {
   if (document.getElementById('lv-btn')) return;
   const btn = document.createElement('div');

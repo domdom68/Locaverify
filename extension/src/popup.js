@@ -1,5 +1,5 @@
-const API = 'https://YOUR-BACKEND.railway.app';
-const APP = 'https://seculoca.vercel.app';
+const API = 'https://determined-nourishment-production-ea9c.up.railway.app';
+const APP = 'https://seculoca.fr';
 const app = document.getElementById('app');
 
 function scoreColor(s) { return s >= 70 ? 'red' : s >= 35 ? 'amber' : 'green'; }
