@@ -194,7 +194,8 @@ export default function Rapport() {
     const score = analyse.risk_score;
     const riskLabel = score >= 70 ? 'RISQUE ÉLEVÉ' : score >= 35 ? 'RISQUE MODÉRÉ' : 'FAIBLE RISQUE';
     const riskColor = score >= 70 ? [220, 38, 38] : score >= 35 ? [217, 119, 6] : [5, 150, 105];
-    const statusLabel = { ok: '✅ OK', warning: '⚠️ Attention', danger: '🚨 Suspect', info: 'ℹ️ Info' };
+    const statusLabel = { ok: 'OK', warning: 'Attention', danger: 'Suspect', info: 'Info' };
+    const statusColor = { ok: [22,163,74], warning: [217,119,6], danger: [220,38,38], info: [37,99,235] };
 
     doc.setFillColor(15, 27, 53);
     doc.rect(0, 0, 210, 32, 'F');
@@ -238,6 +239,12 @@ export default function Rapport() {
       headStyles: { fillColor: [15, 27, 53], textColor: 255, fontStyle: 'bold' },
       columnStyles: { 0: { cellWidth: 45 }, 1: { cellWidth: 28 }, 2: { cellWidth: 110 } },
       alternateRowStyles: { fillColor: [248, 250, 252] },
+      didParseCell: (data) => {
+        if (data.column.index === 1 && data.row.section === 'body') {
+          const st = criteria[data.row.index]?.status;
+          if (statusColor[st]) { data.cell.styles.textColor = statusColor[st]; data.cell.styles.fontStyle = 'bold'; }
+        }
+      },
     });
 
     const pageCount = doc.internal.getNumberOfPages();
