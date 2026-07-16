@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
@@ -6,10 +6,11 @@ export default function Layout({ children }) {
   const { profile, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const credits = profile?.credits ?? 0;
   const plan = profile?.plan || 'free';
-  const isSubscriber = plan === 'solo' || plan === 'pro';
+  const isSubscriber = plan === 'essentiel' || plan === 'max' || plan === 'pro';
   const creditColor = isSubscriber ? 'text-blue-700 bg-blue-50'
     : credits === 0 ? 'text-red-600 bg-red-50'
     : credits <= 3 ? 'text-amber-600 bg-amber-50'
@@ -68,8 +69,8 @@ export default function Layout({ children }) {
             <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold ${creditColor}`}>
               {isSubscriber ? (
                 <>
-                  <span>{plan === 'pro' ? '⭐' : '✓'}</span>
-                  <span>{plan === 'pro' ? 'Pro' : 'Solo'}</span>
+                  <span>{plan === 'pro' ? '⭐' : plan === 'max' ? '🚀' : '✓'}</span>
+                  <span>{plan === 'pro' ? 'Pro' : plan === 'max' ? 'Max' : 'Essentiel'}</span>
                 </>
               ) : (
                 <>
@@ -92,23 +93,41 @@ export default function Layout({ children }) {
                 {profile?.email?.[0]?.toUpperCase() ?? '?'}
               </div>
             </button>
+
+            {/* Mobile menu button */}
+            <button
+              onClick={() => setMobileMenuOpen(o => !o)}
+              className="md:hidden flex items-center justify-center w-9 h-9 rounded-lg text-slate-600 hover:bg-slate-50"
+              aria-label="Menu"
+            >
+              {mobileMenuOpen ? (
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 5L15 15M15 5L5 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 5H17M3 10H17M3 15H17" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+              )}
+            </button>
           </div>
         </div>
 
-        {/* Mobile nav */}
-        <div className="md:hidden border-t border-slate-100 px-4 py-2 flex gap-1 overflow-x-auto">
-          {navLinks.map(({ to, label }) => (
-            <Link
-              key={to}
-              to={to}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                location.pathname === to ? 'bg-blue-50 text-blue-700' : 'text-slate-600'
-              }`}
-            >
-              {label}
-            </Link>
-          ))}
-        </div>
+        
+
+        {/* Mobile nav panel */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-slate-100 px-4 py-3 flex flex-col gap-1">
+            {navLinks.map(({ to, label }) => (
+              <Link
+                key={to}
+                to={to}
+                onClick={() => setMobileMenuOpen(false)}
+                className={`px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  location.pathname === to ? 'bg-blue-50 text-blue-700' : 'text-slate-600'
+                }`}
+              >
+                {label}
+              </Link>
+            ))}
+          </div>
+        )}
       </header>
 
       {/* Main */}
