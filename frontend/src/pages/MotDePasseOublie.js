@@ -38,7 +38,7 @@ export default function MotDePasseOublie() {
             <span className="font-bold text-xl text-slate-900">Seculoca</span>
           </Link>
           <p className="text-slate-500 text-sm mt-3">
-            Entrez votre email pour recevoir un lien de reinitialisation.
+            Entrez votre email pour recevoir un lien de réinitialisation.
           </p>
         </div>
 
@@ -70,13 +70,13 @@ export default function MotDePasseOublie() {
                 className="w-full py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                Envoyer le lien de reinitialisation
+                Envoyer le lien de réinitialisation
               </button>
             </form>
           ) : (
             <div className="flex items-start gap-2 p-3 bg-green-50 rounded-lg text-sm text-green-600">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="mt-0.5 flex-shrink-0"><circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5"/><path d="M5 8L7 10L11 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              Si un compte existe avec cet email, un lien de reinitialisation vient de vous etre envoye.
+              Si un compte existe avec cet email, un lien de réinitialisation vient de vous être envoyé.
             </div>
           )}
         </div>

@@ -30,7 +30,7 @@ export default function Dashboard() {
   const credits = profile?.credits ?? 0;
 
   async function handleDelete(id) {
-    if (!window.confirm('Supprimer definitivement cette analyse ?')) return;
+    if (!window.confirm('Supprimer définitivement cette analyse ?')) return;
     const { error } = await supabase.from('analyses').delete().eq('id', id);
     if (!error) setAnalyses(prev => prev.filter(a => a.id !== id));
     else alert('Erreur lors de la suppression : ' + error.message);
