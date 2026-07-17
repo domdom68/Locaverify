@@ -16,6 +16,9 @@ import FAQ from './pages/FAQ';
 import VerifPaiement from './pages/VerifPaiement';
 import Communaute from './pages/Communaute';
 import Demo from './pages/Demo';
+import MentionsLegales from './pages/MentionsLegales';
+import Confidentialite from './pages/Confidentialite';
+import CGU from './pages/CGU';
 import './index.css';
 
 function PrivateRoute({ children }) {
@@ -39,6 +42,9 @@ export default function App() {
           <Route path="/demo" element={<Demo />} />
           <Route path="/rapport/public/:token" element={<RapportPublic />} />
           <Route path="/faq" element={<FAQ />} />
+          <Route path="/mentions-legales" element={<MentionsLegales />} />
+          <Route path="/confidentialite" element={<Confidentialite />} />
+          <Route path="/cgu" element={<CGU />} />
           <Route path="/connexion" element={<PublicRoute><Login /></PublicRoute>} />
           <Route path="/mot-de-passe-oublie" element={<PublicRoute><MotDePasseOublie /></PublicRoute>} />
           <Route path="/reinitialiser-mot-de-passe" element={<ReinitialiserMotDePasse />} />
