@@ -404,10 +404,10 @@ export default function Landing() {
         </div>
         <span>© 2026 Seculoca — Tous droits réservés</span>
         <div className="footer-links">
-          <a href="#mentions">Mentions légales</a>
-          <a href="#confidentialite">Confidentialité</a>
-          <a href="#cgu">CGU</a>
-          <a href="#contact">Contact</a>
+          <Link to="/mentions-legales">Mentions légales</Link>
+            <Link to="/confidentialite">Confidentialité</Link>
+            <Link to="/cgu">CGU</Link>
+            <a href="#contact">Contact</a>
         </div>
       </footer>
     </>
