@@ -3,7 +3,7 @@ const router = express.Router();
 const OpenAI = require('openai');
 const { requireAuth, supabase } = require('../middleware/auth');
 const { getUserPlanState, deductOneAnalysis } = require('../lib/subscriptionManager');
-const { analyseListingImages, buildImageCriterion } = require('../lib/imageAnalyzer');
+const { analyseListingImages, buildImageCriterion, updateImageRegistry } = require('../lib/imageAnalyzer');
 const { runCommunityChecks, updateCommunityDB, buildCommunityCriterion } = require('../lib/communityCheck');
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -76,7 +76,7 @@ Pour le critère "Prix vs marché local", compare le prix indiqué avec les loye
         if (!url && (!imageUrls || imageUrls.length === 0)) {
           return { checked: false, reason: 'URL non fournie', results: [], summary: { dangerCount: 0, warningCount: 0, totalChecked: 0 } };
         }
-        if (url && process.env.GOOGLE_VISION_API_KEY) {
+        if (url) {
           // Fetch the listing page to extract images
           try {
             const controller = new AbortController();
@@ -87,12 +87,14 @@ Pour le critère "Prix vs marché local", compare le prix indiqué avec les loye
             });
             clearTimeout(timeout);
             const html = await pageRes.text();
+            // apiKey may be undefined — analyseListingImages still runs the
+            // free registry check + metadata check even without Vision
             return analyseListingImages(html, url, process.env.GOOGLE_VISION_API_KEY);
           } catch {
             return { checked: false, reason: 'Page inaccessible pour l\'analyse des images', results: [], summary: { dangerCount: 0, warningCount: 0, totalChecked: 0 } };
           }
         }
-        return { checked: false, reason: 'Clé Google Vision non configurée', results: [], summary: { dangerCount: 0, warningCount: 0, totalChecked: 0 } };
+        return { checked: false, reason: 'Aucune URL fournie pour extraire les images', results: [], summary: { dangerCount: 0, warningCount: 0, totalChecked: 0 } };
       })(),
 
       // 3. Community database check
@@ -139,6 +141,13 @@ Pour le critère "Prix vs marché local", compare le prix indiqué avec les loye
 
     adjustedScore = Math.round(adjustedScore);
 
+    // ── Extract perceptual hashes computed during image analysis,
+    // stored alongside the summary so a later confirmed verdict can
+    // feed them into the proprietary image registry. ───────────────
+    const imageHashes = (imgData?.results || [])
+      .map(r => r.perceptualHash)
+      .filter(Boolean);
+
     // ── Save analysis ────────────────────────────────────────
     const { data: saved, error: saveError } = await supabase
       .from('analyses')
@@ -150,12 +159,13 @@ Pour le critère "Prix vs marché local", compare le prix indiqué avec les loye
         duree_prix: dureePrixLabel,
         localisation,
         proprietaire: proprietaire || null,
+        telephone: telephone || null,
         risk_score: adjustedScore,
         summary: analysis.summary,
         recommendation: analysis.recommendation,
         criteria: allCriteria,
         title: `${localisation} — ${prix ? prix + '€/' + dureePrixLabel : 'prix non renseigné'}`,
-        image_check_summary: imgData?.summary || null,
+        image_check_summary: imgData ? { ...imgData.summary, hashes: imageHashes } : null,
         community_check_summary: comData ? { hasHits: comData.hasHits, dangerCount: comData.dangerCount } : null,
       })
       .select()
@@ -166,16 +176,31 @@ Pour le critère "Prix vs marché local", compare le prix indiqué avec les loye
     // ── Deduct credit ────────────────────────────────────────
     await deductOneAnalysis(userId, planState.plan);
 
-    // ── Update community DB (async, non-blocking) ────────────
-    const isHighRisk = adjustedScore >= 70;
+    // ── Track occurrence in the community registry (async, non-blocking) ──
+    // IMPORTANT: isScam is always false here. The AI's own risk_score is
+    // NOT treated as a confirmed fraud verdict — doing so would create a
+    // self-reinforcing loop where the model's own mistakes get written
+    // into the registry as "confirmed", then read back as extra evidence
+    // on the next analysis of the same listing. Only a real human verdict
+    // (via the /api/feedback route, verdict = 'scam') should ever set
+    // isScam = true. This call here only increments report_count / tracks
+    // that the listing was seen, which is legitimate telemetry.
     updateCommunityDB({
       url,
       iban: null,
       phone: telephone || null,
       email: null,
       riskScore: adjustedScore,
-      isScam: isHighRisk,
+      isScam: false,
     }).catch(console.error);
+
+    if (imageHashes.length > 0) {
+      updateImageRegistry({
+        hashes: imageHashes,
+        isScam: false,
+        analyseId: saved.id,
+      }).catch(console.error);
+    }
 
     return res.json({
       id: saved.id,

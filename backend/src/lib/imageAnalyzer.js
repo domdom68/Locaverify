@@ -1,32 +1,44 @@
 /**
  * imageAnalyzer.js
  * Extracts images from listing HTML and checks them via Google Vision API
- * for web detection (reverse image search).
+ * for web detection (reverse image search) — AND against Seculoca's own
+ * proprietary registry of perceptual image hashes (reported_images table).
  *
- * Google Vision Web Detection returns:
- *  - fullMatchingImages  : exact copies on the web
- *  - partialMatchingImages : partial copies / cropped versions
- *  - pagesWithMatchingImages : pages containing matching images
- *  - visuallySimilarImages : similar (not identical) images
+ * Flow per image:
+ *  1. Download image bytes once
+ *  2. Compute a perceptual hash (local, free, instant)
+ *  3. Check that hash against reported_images (our own DB, free, instant)
+ *     -> if a confirmed-fraud match is found, skip the paid Vision API call
+ *  4. Otherwise, fall back to Google Vision Web Detection + metadata checks
+ *  5. Every computed hash is returned so the caller can feed it back into
+ *     the registry once a fraud verdict is confirmed (see updateImageRegistry)
+ *
+ * NOTE on hash accuracy: this is an average-hash (aHash), which reliably
+ * catches identical or near-identical re-uploads of the same photo. It will
+ * NOT catch images that were cropped, rotated, or heavily filtered — that
+ * needs a Hamming-distance comparison instead of exact match, planned as a
+ * later iteration.
  */
 
 const https = require('https');
+const Jimp = require('jimp');
+const { supabase } = require('../middleware/auth');
 
 const GOOGLE_VISION_ENDPOINT =
   'https://vision.googleapis.com/v1/images:annotate';
+
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB safety cap per image
 
 // ── Extract image URLs from raw HTML ────────────────────────────
 function extractImageUrls(html, baseUrl) {
   const urls = new Set();
 
-  // Standard <img src="...">
   const imgRe = /<img[^>]+src=["']([^"']+)["']/gi;
   let m;
   while ((m = imgRe.exec(html)) !== null) {
     try { urls.add(new URL(m[1], baseUrl).href); } catch {}
   }
 
-  // JSON-embedded image arrays (LeBonCoin, SeLoger style)
   const jsonImgRe = /"(https?:\/\/[^"]+\.(?:jpg|jpeg|png|webp))"/gi;
   while ((m = jsonImgRe.exec(html)) !== null) {
     if (!m[1].includes('icon') && !m[1].includes('logo') && !m[1].includes('avatar')) {
@@ -34,12 +46,10 @@ function extractImageUrls(html, baseUrl) {
     }
   }
 
-  // og:image meta
   const ogRe = /<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i;
   const og = html.match(ogRe);
   if (og) { try { urls.add(new URL(og[1], baseUrl).href); } catch {} }
 
-  // Filter: keep only likely listing photos (skip tiny icons, trackers)
   return [...urls]
     .filter(u => {
       const lower = u.toLowerCase();
@@ -51,7 +61,76 @@ function extractImageUrls(html, baseUrl) {
         !lower.includes('favicon') && !lower.includes('sprite')
       );
     })
-    .slice(0, 8); // max 8 images per listing to control API cost
+    .slice(0, 8);
+}
+
+// ── Download image bytes with a size cap and timeout ─────────────
+function downloadImageBuffer(imageUrl) {
+  return new Promise((resolve, reject) => {
+    const req = https.get(imageUrl, res => {
+      if (res.statusCode >= 400) {
+        res.resume();
+        return reject(new Error(`HTTP ${res.statusCode}`));
+      }
+      const chunks = [];
+      let total = 0;
+      res.on('data', chunk => {
+        total += chunk.length;
+        if (total > MAX_IMAGE_BYTES) {
+          req.destroy();
+          return reject(new Error('Image too large'));
+        }
+        chunks.push(chunk);
+      });
+      res.on('end', () => resolve(Buffer.concat(chunks)));
+      res.on('error', reject);
+    });
+    req.on('error', reject);
+    req.setTimeout(6000, () => { req.destroy(); reject(new Error('Download timeout')); });
+  });
+}
+
+// ── Compute a perceptual average-hash (aHash) from image bytes ──
+// Returns a 16-char hex string (64-bit hash from an 8x8 greyscale grid).
+async function computePerceptualHash(buffer) {
+  const image = await Jimp.read(buffer);
+  image.resize(8, 8).greyscale();
+
+  const pixels = [];
+  image.scan(0, 0, 8, 8, function (x, y, idx) {
+    pixels.push(this.bitmap.data[idx]);
+  });
+
+  const avg = pixels.reduce((a, b) => a + b, 0) / pixels.length;
+  const bits = pixels.map(p => (p >= avg ? '1' : '0')).join('');
+
+  let hex = '';
+  for (let i = 0; i < bits.length; i += 4) {
+    hex += parseInt(bits.substr(i, 4), 2).toString(16);
+  }
+  return hex;
+}
+
+// ── Check a perceptual hash against our own registry ─────────────
+async function checkImageHash(hash) {
+  if (!hash) return null;
+
+  const { data } = await supabase
+    .from('reported_images')
+    .select('id, report_count, confirmed_scam_count, first_seen_at')
+    .eq('perceptual_hash', hash)
+    .single();
+
+  if (!data) return null;
+
+  return {
+    found: true,
+    reportCount: data.report_count,
+    confirmedScamCount: data.confirmed_scam_count,
+    firstSeenAt: data.first_seen_at,
+    riskLevel: data.confirmed_scam_count >= 1 ? 'danger' : 'warning',
+    detail: `Cette photo (empreinte identique) a été signalée ${data.report_count} fois dans notre base propriétaire Seculoca${data.confirmed_scam_count > 0 ? `, dont ${data.confirmed_scam_count} arnaque(s) confirmée(s)` : ''}.`,
+  };
 }
 
 // ── Call Google Vision Web Detection for one image ──────────────
@@ -102,7 +181,6 @@ function assessImageRisk(visionResult, imageUrl) {
 
   const totalMatches = fullMatches.length + partialMatches.length;
 
-  // Extract suspicious domains (foreign sites, other listing platforms)
   const foreignDomains = pages
     .map(p => { try { return new URL(p.url).hostname; } catch { return null; } })
     .filter(Boolean)
@@ -141,17 +219,15 @@ function assessImageRisk(visionResult, imageUrl) {
   };
 }
 
-// ── EXIF metadata check via URL analysis ────────────────────────
+// ── EXIF/URL-based metadata check (free, instant) ─────────────────
 function checkImageMetadata(imageUrl) {
   const flags = [];
   const lower = imageUrl.toLowerCase();
 
-  // Stock photo CDNs
   if (/shutterstock|gettyimages|istockphoto|depositphotos|123rf|dreamstime/i.test(lower)) {
     flags.push({ riskLevel: 'danger', detail: `Image provenant d'une banque de photos (${lower.match(/shutterstock|gettyimages|istockphoto|depositphotos|123rf|dreamstime/i)?.[0]}) — impossible qu'il s'agisse du logement réel.` });
   }
 
-  // Social media (stolen profile photos used as "owner" photo)
   if (/instagram|facebook|twitter|linkedin|tiktok/i.test(lower)) {
     flags.push({ riskLevel: 'warning', detail: `Image hébergée sur un réseau social — possiblement une photo de profil volée.` });
   }
@@ -161,15 +237,6 @@ function checkImageMetadata(imageUrl) {
 
 // ── Main export: analyse all images from a listing ───────────────
 async function analyseListingImages(html, listingUrl, apiKey) {
-  if (!apiKey) {
-    return {
-      checked: false,
-      reason: 'Clé Google Vision non configurée',
-      results: [],
-      summary: { dangerCount: 0, warningCount: 0, totalChecked: 0 },
-    };
-  }
-
   const imageUrls = extractImageUrls(html, listingUrl || 'https://example.com');
 
   if (imageUrls.length === 0) {
@@ -181,17 +248,48 @@ async function analyseListingImages(html, listingUrl, apiKey) {
     };
   }
 
-  // Run all checks in parallel (capped at 8 images)
   const results = await Promise.allSettled(
     imageUrls.map(async url => {
-      // Metadata check (free, instant)
+      // 1. Metadata check first (free, instant, no download needed)
       const metaFlags = checkImageMetadata(url);
-      if (metaFlags.length > 0) return { ...metaFlags[0], imageUrl: url };
+      if (metaFlags.length > 0) return { ...metaFlags[0], imageUrl: url, perceptualHash: null };
 
-      // Google Vision check
+      // 2. Download once, compute our own perceptual hash
+      let hash = null;
+      try {
+        const buffer = await downloadImageBuffer(url);
+        hash = await computePerceptualHash(buffer);
+      } catch {
+        // download/hash failure — fall through to Vision-only if apiKey available
+      }
+
+      // 3. Check our own free registry before paying for Vision
+      if (hash) {
+        const registryHit = await checkImageHash(hash);
+        if (registryHit) {
+          return {
+            imageUrl: url,
+            perceptualHash: hash,
+            riskLevel: registryHit.riskLevel,
+            matchCount: registryHit.reportCount,
+            foreignDomains: [],
+            detail: registryHit.detail,
+            source: 'registre_seculoca',
+          };
+        }
+      }
+
+      // 4. Not in our registry — fall back to Google Vision (if configured)
+      if (!apiKey) {
+        return hash
+          ? { imageUrl: url, perceptualHash: hash, riskLevel: 'ok', matchCount: 0, foreignDomains: [], detail: 'Aucune copie connue dans notre registre (Vision API non configurée).' }
+          : null;
+      }
+
       try {
         const vision = await checkImageWithVision(url, apiKey);
-        return assessImageRisk(vision, url);
+        const assessed = assessImageRisk(vision, url);
+        return assessed ? { ...assessed, perceptualHash: hash, source: 'google_vision' } : null;
       } catch {
         return null;
       }
@@ -216,6 +314,26 @@ async function analyseListingImages(html, listingUrl, apiKey) {
       worstLevel: dangerCount > 0 ? 'danger' : warningCount > 0 ? 'warning' : 'ok',
     },
   };
+}
+
+// ── Feed confirmed-fraud hashes back into the registry ────────────
+// Call this once a feedback verdict ('scam' or 'legit') is submitted for
+// an analysis, passing the perceptualHash values stored in that analysis'
+// image_check_summary. Mirrors updateCommunityDB in communityCheck.js.
+async function updateImageRegistry({ hashes, isScam, analyseId }) {
+  if (!hashes || hashes.length === 0) return;
+
+  const tasks = hashes
+    .filter(Boolean)
+    .map(hash =>
+      supabase.rpc('upsert_reported_image', {
+        p_hash: hash,
+        p_is_scam: isScam,
+        p_analyse_id: analyseId || null,
+      })
+    );
+
+  await Promise.allSettled(tasks);
 }
 
 // ── Build the criteria entry for the analysis report ─────────────
@@ -255,4 +373,11 @@ function buildImageCriterion(imageAnalysis) {
   };
 }
 
-module.exports = { analyseListingImages, buildImageCriterion, extractImageUrls };
+module.exports = {
+  analyseListingImages,
+  buildImageCriterion,
+  extractImageUrls,
+  computePerceptualHash,
+  checkImageHash,
+  updateImageRegistry,
+};
