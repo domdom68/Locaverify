@@ -5,6 +5,7 @@ const { getUserPlanState, deductOneAnalysis } = require('../lib/subscriptionMana
 const { analyseListingImages, buildImageCriterion, updateImageRegistry } = require('../lib/imageAnalyzer');
 const { runCommunityChecks, updateCommunityDB, buildCommunityCriterion } = require('../lib/communityCheck');
 const { extractListingSignals, computeDeterministicScore, buildRecommendation } = require('../lib/aiSignalExtractor');
+const { lookupRentBenchmark } = require('../lib/priceBenchmark');
 
 // POST /api/analyse
 router.post('/', requireAuth, async (req, res) => {
@@ -25,8 +26,8 @@ router.post('/', requireAuth, async (req, res) => {
   }
 
   try {
-    // ── Run 3 checks in parallel: AI signal extraction + images + community ────
-    const [aiResult, imageResult, communityResult] = await Promise.allSettled([
+    // ── Run 4 checks in parallel: AI signal extraction + images + community + rent benchmark ────
+    const [aiResult, imageResult, communityResult, benchmarkResult] = await Promise.allSettled([
 
       // 1. GPT-4o — STEP 1 ONLY: extract factual signals, no scoring here
       extractListingSignals({ description, prix, dureePrixLabel, localisation, proprietaire, telephone, url }),
@@ -56,6 +57,9 @@ router.post('/', requireAuth, async (req, res) => {
 
       // 3. Community database check
       runCommunityChecks({ url, iban: null, phone: telephone || null, email: null }),
+
+      // 4. Real ANIL rent-per-m² benchmark for this localisation
+      lookupRentBenchmark(localisation),
     ]);
 
     // ── STEP 2: deterministic scoring from extracted signals ────
@@ -63,7 +67,8 @@ router.post('/', requireAuth, async (req, res) => {
       throw new Error('Extraction des signaux IA échouée : ' + aiResult.reason?.message);
     }
     const signals = aiResult.value;
-    const { score: baseScore, criteria: aiCriteria, summary: aiSummary } = computeDeterministicScore(signals);
+    const benchmark = benchmarkResult.status === 'fulfilled' ? benchmarkResult.value : null;
+    const { score: baseScore, criteria: aiCriteria, summary: aiSummary } = computeDeterministicScore(signals, benchmark);
 
     // ── Build additional criteria ────────────────────────────
     const imageCriterion = buildImageCriterion(

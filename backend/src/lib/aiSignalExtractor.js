@@ -61,7 +61,8 @@ Renvoie UNIQUEMENT un objet JSON valide avec cette structure exacte :
 {
   "prix": {
     "prix_mensuel_equivalent": <nombre ou null>,
-    "ecart_pourcentage_marche_local": <nombre négatif si sous le marché, positif si au-dessus, ou null si non évaluable>,
+    "surface_m2": <nombre ou null, surface du logement en m² si mentionnée dans le texte>,
+    "ecart_pourcentage_marche_local": <nombre négatif si sous le marché, positif si au-dessus, ou null si non évaluable — ta MEILLEURE ESTIMATION, qui pourra être remplacée par une donnée officielle si disponible>,
     "explication": "<1 phrase>"
   },
   "urgence_pression": {
@@ -106,22 +107,36 @@ Pour "ecart_pourcentage_marche_local" : ramène toujours le prix à un équivale
 }
 
 // ── Step 2: deterministic scoring from extracted signals ──────────
-function computeDeterministicScore(signals) {
+// `benchmark` (optional) comes from priceBenchmark.js — real ANIL data.
+// When available and reliable, it REPLACES GPT's own price estimate.
+function computeDeterministicScore(signals, benchmark = null) {
   let score = 0;
   const criteria = [];
 
-  // Prix vs marché
-  const ecart = signals.prix?.ecart_pourcentage_marche_local;
+  // Prix vs marché — prefer real ANIL benchmark data over GPT's guess
+  const prixMensuel = signals.prix?.prix_mensuel_equivalent;
+  const surface = signals.prix?.surface_m2;
+  let ecart = signals.prix?.ecart_pourcentage_marche_local;
+  let prixDetail = signals.prix?.explication;
+  let prixSource = 'estimation_ia';
+
+  if (benchmark && benchmark.loyerM2 && prixMensuel && surface && surface > 0) {
+    const loyerM2Annonce = prixMensuel / surface;
+    ecart = Math.round(((loyerM2Annonce - benchmark.loyerM2) / benchmark.loyerM2) * 100);
+    prixSource = benchmark.reliable ? 'anil_fiable' : 'anil_peu_fiable';
+    prixDetail = `Loyer annoncé : ${loyerM2Annonce.toFixed(1)} €/m² — référence ANIL pour ${benchmark.matchedLibgeo} : ${benchmark.loyerM2.toFixed(1)} €/m² (${ecart > 0 ? '+' : ''}${ecart}%).` + (benchmark.note ? ` ${benchmark.note}` : '');
+  }
+
   if (ecart != null && ecart <= -30) {
     score += WEIGHTS.prixEcartFort;
-    criteria.push({ label: 'Prix vs marché local', status: 'danger', detail: signals.prix.explication || `Prix anormalement bas (${ecart}% sous le marché local).` });
+    criteria.push({ label: 'Prix vs marché local', status: 'danger', detail: prixDetail || `Prix anormalement bas (${ecart}% sous le marché local).`, source: prixSource });
   } else if (ecart != null && ecart <= -15) {
     score += WEIGHTS.prixEcartModere;
-    criteria.push({ label: 'Prix vs marché local', status: 'warning', detail: signals.prix.explication || `Prix sous le marché local (${ecart}%).` });
+    criteria.push({ label: 'Prix vs marché local', status: 'warning', detail: prixDetail || `Prix sous le marché local (${ecart}%).`, source: prixSource });
   } else if (ecart != null) {
-    criteria.push({ label: 'Prix vs marché local', status: 'ok', detail: signals.prix.explication || 'Prix cohérent avec le marché local.' });
+    criteria.push({ label: 'Prix vs marché local', status: 'ok', detail: prixDetail || 'Prix cohérent avec le marché local.', source: prixSource });
   } else {
-    criteria.push({ label: 'Prix vs marché local', status: 'info', detail: 'Prix non évaluable avec les informations fournies.' });
+    criteria.push({ label: 'Prix vs marché local', status: 'info', detail: 'Prix non évaluable avec les informations fournies (surface ou prix manquant).', source: prixSource });
   }
 
   // Urgence et pression
