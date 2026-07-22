@@ -6,6 +6,7 @@ const { analyseListingImages, buildImageCriterion, updateImageRegistry } = requi
 const { runCommunityChecks, updateCommunityDB, buildCommunityCriterion } = require('../lib/communityCheck');
 const { extractListingSignals, computeDeterministicScore, buildRecommendation } = require('../lib/aiSignalExtractor');
 const { lookupRentBenchmark } = require('../lib/priceBenchmark');
+const { lookupDpe, buildDpeCriterion } = require('../lib/dpeCheck');
 
 // POST /api/analyse
 router.post('/', requireAuth, async (req, res) => {
@@ -70,6 +71,18 @@ router.post('/', requireAuth, async (req, res) => {
     const benchmark = benchmarkResult.status === 'fulfilled' ? benchmarkResult.value : null;
     const { score: baseScore, criteria: aiCriteria, summary: aiSummary } = computeDeterministicScore(signals, benchmark);
 
+    // ── DPE cross-check: depends on the address extracted in step 1,
+    // so it runs after (not in the initial parallel batch above).
+    let dpeMatch = null;
+    if (signals.adresse_precise) {
+      try {
+        dpeMatch = await lookupDpe(signals.adresse_precise, signals.code_postal);
+      } catch {
+        dpeMatch = null;
+      }
+    }
+    const dpeCriterion = buildDpeCriterion(dpeMatch, signals.prix?.surface_m2);
+
     // ── Build additional criteria ────────────────────────────
     const imageCriterion = buildImageCriterion(
       imageResult.status === 'fulfilled' ? imageResult.value : { checked: false, reason: 'Erreur analyse images', results: [], summary: { dangerCount: 0, warningCount: 0, totalChecked: 0 } }
@@ -84,6 +97,7 @@ router.post('/', requireAuth, async (req, res) => {
       ...aiCriteria,
       imageCriterion,
       communityCriterion,
+      dpeCriterion,
     ];
 
     // ── Adjust global risk score based on image/community signals ────
@@ -97,6 +111,9 @@ router.post('/', requireAuth, async (req, res) => {
 
     if (comData?.dangerCount > 0) adjustedScore = Math.min(100, adjustedScore + 30);
     else if (comData?.warningCount > 0) adjustedScore = Math.min(100, adjustedScore + 15);
+
+    if (dpeCriterion.status === 'danger') adjustedScore = Math.min(100, adjustedScore + 25);
+    else if (dpeCriterion.status === 'warning') adjustedScore = Math.min(100, adjustedScore + 10);
 
     adjustedScore = Math.round(Math.min(100, adjustedScore));
 

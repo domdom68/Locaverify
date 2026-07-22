@@ -59,6 +59,8 @@ Texte : """${description}"""
 
 Renvoie UNIQUEMENT un objet JSON valide avec cette structure exacte :
 {
+  "adresse_precise": <chaîne ou null, adresse postale complète (numéro + rue + ville) UNIQUEMENT si explicitement mentionnée dans le texte — ne jamais inventer ou déduire une adresse à partir de la seule localisation générale>,
+  "code_postal": <chaîne ou null, code postal si mentionné ou déductible sans ambiguïté du texte>,
   "prix": {
     "prix_mensuel_equivalent": <nombre ou null>,
     "surface_m2": <nombre ou null, surface du logement en m² si mentionnée dans le texte>,
