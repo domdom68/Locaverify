@@ -87,6 +87,34 @@ export default function Analyse() {
     setScraping(false);
   };
 
+  // ── DPE cross-check, step 2 ───────────────────────────────────
+  // The ADEME API blocks server/datacenter IPs, so this network call
+  // must happen from the browser. We fetch the raw candidates here, then
+  // send them to the backend which does the actual matching + scoring
+  // (all business logic stays server-side and auditable). This runs
+  // in the background after the main result is already shown — a bonus
+  // signal that refines the score a moment later, not a blocking step.
+  const verifyDpe = async (analyseId, queryUrl, token) => {
+    try {
+      const ademeRes = await fetch(queryUrl);
+      const ademeJson = await ademeRes.json();
+
+      const verifyRes = await fetch(`${API}/api/analyse/${analyseId}/dpe-verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ candidates: ademeJson.results || [] }),
+      });
+      if (!verifyRes.ok) return;
+
+      const verifyData = await verifyRes.json();
+      setResult(prev => (prev ? { ...prev, risk_score: verifyData.risk_score, criteria: verifyData.criteria } : prev));
+    } catch {
+      // Silent fail — DPE check is a bonus signal, not a critical path.
+      // If it fails (ad blocker, offline, etc.), the report still stands
+      // on its other criteria.
+    }
+  };
+
   const handleSubmit = async e => {
     e.preventDefault();
     if (credits <= 0) return;
@@ -102,6 +130,12 @@ export default function Analyse() {
       const data = await res.json();
       setResult(data); setStep('done');
       await refreshProfile();
+
+      // Kick off the DPE check in the background (non-blocking)
+      if (data.dpeCheck?.needed && data.dpeCheck?.queryUrl) {
+        verifyDpe(data.id, data.dpeCheck.queryUrl, session.access_token);
+      }
+
       // Check low credits
       fetch(`${API}/api/alerts/low-credits`, {
         method: 'POST',

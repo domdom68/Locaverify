@@ -6,24 +6,21 @@
  * by ADEME as open data (data.ademe.fr, "DPE Logements existants" dataset,
  * Licence Ouverte / Open Licence v2.0 — Etalab).
  *
- * This is only useful when the listing mentions a precise street address
- * (many rental listings only give a neighbourhood/city before a visit is
- * arranged, which is normal, not suspicious) — but when an address IS
- * given, comparing it to the real, government-verified surface of that
- * exact building is a signal a fraudster has essentially no way to fake,
- * since they'd need to know this obscure cross-check exists at all.
- *
- * API docs: https://data.ademe.fr/datasets/dpe03existant/api-doc
- * No API key required — public open data.
+ * IMPORTANT ARCHITECTURE NOTE: the ADEME API blocks requests coming from
+ * cloud/datacenter IP ranges (confirmed: Railway's outbound IP gets a 403
+ * Forbidden from their nginx front, while the exact same request from a
+ * regular browser succeeds). So the raw network fetch to data.ademe.fr
+ * MUST happen client-side (in the visitor's browser), not from this
+ * backend. This module only contains the MATCHING logic (pure functions,
+ * no network calls) so the decision of "is this a match, is it reliable"
+ * stays centralised and auditable on the server — only the HTTP fetch
+ * itself is delegated to the browser. See routes/analyse.js and the new
+ * POST /api/analyse/:id/dpe-verify endpoint for how the two halves connect.
  */
-
-const https = require('https');
-
-const API_HOST = 'data.ademe.fr';
-const API_PATH = '/data-fair/api/v1/datasets/dpe03existant/lines';
 
 const SURFACE_MISMATCH_DANGER = 30;   // % difference considered a strong red flag
 const SURFACE_MISMATCH_WARNING = 15;  // % difference considered worth noting
+const MATCH_THRESHOLD = 0.5;          // minimum word-overlap score to trust a match
 
 function normaliseWords(str) {
   return (str || '')
@@ -47,88 +44,25 @@ function addressSimilarity(inputAddress, candidateAddress) {
   return overlap / Math.max(a.size, b.size);
 }
 
-function httpsGetJson(hostname, path, redirectCount = 0) {
-  return new Promise((resolve, reject) => {
-    if (redirectCount > 3) return reject(new Error('Trop de redirections'));
-
-    const req = https.get({
-      hostname,
-      path,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'Accept': 'application/json',
-      },
-    }, res => {
-      // Follow redirects (data.ademe.fr redirects the friendly slug to the
-      // real internal dataset id — a browser does this transparently,
-      // but Node's https.get does not by default).
-      if ([301, 302, 307, 308].includes(res.statusCode) && res.headers.location) {
-        res.resume(); // discard body
-        const redirectUrl = new URL(res.headers.location, `https://${hostname}${path}`);
-        return resolve(httpsGetJson(redirectUrl.hostname, redirectUrl.pathname + redirectUrl.search, redirectCount + 1));
-      }
-
-      let data = '';
-      res.on('data', chunk => { data += chunk; });
-      res.on('end', () => {
-        try {
-          resolve(JSON.parse(data));
-        } catch (e) {
-          console.error('[dpeCheck] Réponse non-JSON reçue (statusCode ' + res.statusCode + '), début :', data.slice(0, 200));
-          reject(e);
-        }
-      });
-    });
-    req.on('error', reject);
-    req.setTimeout(6000, () => { req.destroy(); reject(new Error('DPE API timeout')); });
-  });
-}
-
-// ── Main lookup: returns { surfaceReelle, etiquette, anneeConstruction,
-// typeBatiment, matchedAdresse, similarity } or null if no usable match.
-async function lookupDpe(adressePrecise, codePostal) {
-  if (!adressePrecise || adressePrecise.length < 5) {
-    console.log('[dpeCheck] Adresse absente ou trop courte, skip:', adressePrecise);
-    return null;
-  }
-
-  const qParam = encodeURIComponent(adressePrecise);
-  let qs = '';
-  if (codePostal) {
-    qs = `&qs=${encodeURIComponent(`code_postal_ban:"${codePostal}"`)}`;
-  }
-  const path = `${API_PATH}?size=10&q=${qParam}${qs}`;
-  console.log('[dpeCheck] Requête ADEME:', path);
-
-  let json;
-  try {
-    json = await httpsGetJson(API_HOST, path);
-  } catch (err) {
-    console.error('[dpeCheck] Erreur appel API ADEME:', err.message);
-    return null;
-  }
-
-  const candidates = json?.results || [];
-  console.log('[dpeCheck] Nombre de candidats reçus:', candidates.length);
-  if (candidates.length === 0) return null;
+// ── Pure matching function: given the raw ADEME API "results" array
+// (fetched client-side and forwarded to us), pick the best candidate.
+// Returns { surfaceReelle, etiquette, anneeConstruction, typeBatiment,
+// matchedAdresse, similarity } or null if nothing trustworthy found.
+function pickBestDpeMatch(candidates, adressePrecise) {
+  if (!Array.isArray(candidates) || candidates.length === 0) return null;
+  if (!adressePrecise) return null;
 
   let best = null;
   let bestScore = 0;
   for (const c of candidates) {
     const score = addressSimilarity(adressePrecise, c.adresse_ban);
-    console.log('[dpeCheck] Candidat:', c.adresse_ban, '- score:', score.toFixed(2));
     if (score > bestScore) {
       bestScore = score;
       best = c;
     }
   }
 
-  // Require a reasonably strong word overlap before trusting the match —
-  // otherwise we'd risk comparing against a random nearby building.
-  if (!best || bestScore < 0.5) {
-    console.log('[dpeCheck] Meilleur score insuffisant (< 0.5):', bestScore);
-    return null;
-  }
+  if (!best || bestScore < MATCH_THRESHOLD) return null;
 
   return {
     surfaceReelle: best.surface_habitable_logement || null,
@@ -184,4 +118,16 @@ function buildDpeCriterion(dpeMatch, surfaceAnnoncee) {
   };
 }
 
-module.exports = { lookupDpe, buildDpeCriterion, addressSimilarity };
+// ── Build the ADEME API URL for the frontend to fetch directly ────────
+// (kept here so the query-building logic isn't duplicated in the frontend)
+function buildAdemeQueryUrl(adressePrecise, codePostal) {
+  const base = 'https://data.ademe.fr/data-fair/api/v1/datasets/dpe03existant/lines';
+  const qParam = encodeURIComponent(adressePrecise);
+  let qs = '';
+  if (codePostal) {
+    qs = `&qs=${encodeURIComponent(`code_postal_ban:"${codePostal}"`)}`;
+  }
+  return `${base}?size=10&q=${qParam}${qs}`;
+}
+
+module.exports = { pickBestDpeMatch, buildDpeCriterion, addressSimilarity, buildAdemeQueryUrl };
