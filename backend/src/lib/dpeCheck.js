@@ -64,7 +64,10 @@ function httpsGetJson(hostname, path) {
 // ── Main lookup: returns { surfaceReelle, etiquette, anneeConstruction,
 // typeBatiment, matchedAdresse, similarity } or null if no usable match.
 async function lookupDpe(adressePrecise, codePostal) {
-  if (!adressePrecise || adressePrecise.length < 5) return null;
+  if (!adressePrecise || adressePrecise.length < 5) {
+    console.log('[dpeCheck] Adresse absente ou trop courte, skip:', adressePrecise);
+    return null;
+  }
 
   const qParam = encodeURIComponent(adressePrecise);
   let qs = '';
@@ -72,21 +75,25 @@ async function lookupDpe(adressePrecise, codePostal) {
     qs = `&qs=${encodeURIComponent(`code_postal_ban:"${codePostal}"`)}`;
   }
   const path = `${API_PATH}?size=10&q=${qParam}${qs}`;
+  console.log('[dpeCheck] Requête ADEME:', path);
 
   let json;
   try {
     json = await httpsGetJson(API_HOST, path);
-  } catch {
+  } catch (err) {
+    console.error('[dpeCheck] Erreur appel API ADEME:', err.message);
     return null;
   }
 
   const candidates = json?.results || [];
+  console.log('[dpeCheck] Nombre de candidats reçus:', candidates.length);
   if (candidates.length === 0) return null;
 
   let best = null;
   let bestScore = 0;
   for (const c of candidates) {
     const score = addressSimilarity(adressePrecise, c.adresse_ban);
+    console.log('[dpeCheck] Candidat:', c.adresse_ban, '- score:', score.toFixed(2));
     if (score > bestScore) {
       bestScore = score;
       best = c;
@@ -95,7 +102,10 @@ async function lookupDpe(adressePrecise, codePostal) {
 
   // Require a reasonably strong word overlap before trusting the match —
   // otherwise we'd risk comparing against a random nearby building.
-  if (!best || bestScore < 0.5) return null;
+  if (!best || bestScore < 0.5) {
+    console.log('[dpeCheck] Meilleur score insuffisant (< 0.5):', bestScore);
+    return null;
+  }
 
   return {
     surfaceReelle: best.surface_habitable_logement || null,

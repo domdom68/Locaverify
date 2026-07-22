@@ -73,11 +73,14 @@ router.post('/', requireAuth, async (req, res) => {
 
     // ── DPE cross-check: depends on the address extracted in step 1,
     // so it runs after (not in the initial parallel batch above).
+    console.log('[analyse] adresse_precise extraite par l\'IA:', signals.adresse_precise, '| code_postal:', signals.code_postal);
     let dpeMatch = null;
     if (signals.adresse_precise) {
       try {
         dpeMatch = await lookupDpe(signals.adresse_precise, signals.code_postal);
-      } catch {
+        console.log('[analyse] Résultat lookupDpe:', dpeMatch);
+      } catch (err) {
+        console.error('[analyse] Erreur lookupDpe:', err.message);
         dpeMatch = null;
       }
     }
