@@ -47,13 +47,36 @@ function addressSimilarity(inputAddress, candidateAddress) {
   return overlap / Math.max(a.size, b.size);
 }
 
-function httpsGetJson(hostname, path) {
+function httpsGetJson(hostname, path, redirectCount = 0) {
   return new Promise((resolve, reject) => {
-    const req = https.get({ hostname, path, headers: { 'User-Agent': 'Seculoca/1.0' } }, res => {
+    if (redirectCount > 3) return reject(new Error('Trop de redirections'));
+
+    const req = https.get({
+      hostname,
+      path,
+      headers: {
+        'User-Agent': 'Seculoca/1.0',
+        'Accept': 'application/json',
+      },
+    }, res => {
+      // Follow redirects (data.ademe.fr redirects the friendly slug to the
+      // real internal dataset id — a browser does this transparently,
+      // but Node's https.get does not by default).
+      if ([301, 302, 307, 308].includes(res.statusCode) && res.headers.location) {
+        res.resume(); // discard body
+        const redirectUrl = new URL(res.headers.location, `https://${hostname}${path}`);
+        return resolve(httpsGetJson(redirectUrl.hostname, redirectUrl.pathname + redirectUrl.search, redirectCount + 1));
+      }
+
       let data = '';
       res.on('data', chunk => { data += chunk; });
       res.on('end', () => {
-        try { resolve(JSON.parse(data)); } catch (e) { reject(e); }
+        try {
+          resolve(JSON.parse(data));
+        } catch (e) {
+          console.error('[dpeCheck] Réponse non-JSON reçue (statusCode ' + res.statusCode + '), début :', data.slice(0, 200));
+          reject(e);
+        }
       });
     });
     req.on('error', reject);
