@@ -7,6 +7,7 @@ const { runCommunityChecks, updateCommunityDB, buildCommunityCriterion } = requi
 const { extractListingSignals, computeDeterministicScore, buildRecommendation } = require('../lib/aiSignalExtractor');
 const { lookupRentBenchmark } = require('../lib/priceBenchmark');
 const { pickBestDpeMatch, buildDpeCriterion, buildAdemeQueryUrl } = require('../lib/dpeCheck');
+const { checkDomainSpoof, buildDomainCriterion } = require('../lib/domainSpoofCheck');
 
 const DPE_LABEL = 'Cohérence adresse/surface (DPE)';
 
@@ -104,11 +105,16 @@ router.post('/', requireAuth, async (req, res) => {
       communityResult.status === 'fulfilled' ? communityResult.value : { hasHits: false, dangerCount: 0, warningCount: 0, results: {} }
     );
 
+    // ── Domain spoofing check (typosquatting de plateformes connues) ──
+    const domainSpoofResult = checkDomainSpoof(url);
+    const domainCriterion = buildDomainCriterion(domainSpoofResult);
+
     // ── Merge all criteria ───────────────────────────────────
     const allCriteria = [
       ...aiCriteria,
       imageCriterion,
       communityCriterion,
+      domainCriterion,
       dpeCriterion,
     ];
 
@@ -125,6 +131,8 @@ router.post('/', requireAuth, async (req, res) => {
 
     if (comData?.dangerCount > 0) adjustedScore = Math.min(100, adjustedScore + 30);
     else if (comData?.warningCount > 0) adjustedScore = Math.min(100, adjustedScore + 15);
+
+    if (domainSpoofResult.suspect) adjustedScore = Math.min(100, adjustedScore + 35);
 
     adjustedScore = Math.round(Math.min(100, adjustedScore));
 

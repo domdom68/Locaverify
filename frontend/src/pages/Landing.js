@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import demoPreview from '../assets/demo-preview.png';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://determined-nourishment-production-ea9c.up.railway.app';
 
@@ -53,7 +54,7 @@ export default function Landing() {
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Inter', sans-serif; }
-        h1,h2,h3,h4 { font-family: 'Syne', sans-serif; line-height: 1.15; }
+        h1,h2,h3,h4 { font-family: 'Syne', sans-serif; line-height: 1.3; }
         .landing-nav {
           position: sticky; top: 0; z-index: 100;
           background: rgba(255,255,255,0.95); backdrop-filter: blur(8px);
@@ -123,6 +124,11 @@ export default function Landing() {
         .step-icon { width: 48px; height: 48px; background: var(--blue-100); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; font-size: 1.4rem; }
         .step-card h3 { font-size: 1.05rem; font-weight: 700; color: var(--blue-900); margin-bottom: 10px; }
         .step-card p { font-size: 0.88rem; color: var(--muted); line-height: 1.6; }
+        .demo-preview-section { background: var(--sand); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+        .demo-preview-grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 48px; align-items: center; }
+        .demo-preview-img-wrap { border-radius: 16px; overflow: hidden; box-shadow: 0 12px 40px rgba(11,31,74,0.15); border: 1px solid var(--border); }
+        .demo-preview-img-wrap img { display: block; width: 100%; height: auto; }
+        @media (max-width: 900px) { .demo-preview-grid { grid-template-columns: 1fr; } .demo-preview-img-wrap { order: -1; } }
         .pricing-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 20px; }
         .plan-card { border: 1.5px solid var(--border); border-radius: 16px; padding: 28px 24px; background: white; position: relative; transition: box-shadow 0.2s, transform 0.2s; }
         .plan-card:hover { box-shadow: 0 8px 32px rgba(30,95,212,0.1); transform: translateY(-3px); }
@@ -201,7 +207,7 @@ export default function Landing() {
         <div className="hero-grid">
           <div>
             <div className="hero-badge">✦ Intelligence artificielle · Détection en temps réel</div>
-            <h1>Louez en toute<br/><em>confiance</em></h1>
+            <h1>Vérifiez avant<br/><em>de louer</em></h1>
             <p><strong>Seculoca</strong> analyse vos annonces de location en quelques secondes et détecte les signaux potentiels d'arnaque.</p>
             <div className="hero-cta">
               <Link to="/connexion?mode=register" className="btn btn-primary btn-large">✓ Analyser une annonce gratuitement</Link>
@@ -238,6 +244,21 @@ export default function Landing() {
             <div className="step-card"><div className="step-num">03</div><div className="step-icon">🎯</div><h3>Recevez votre score</h3><p>Un score de risque clair de 0 à 100, avec les signaux détectés expliqués en français.</p></div>
           </div>
         </div>      </section>
+
+      {/* APERÇU DU PRODUIT */}
+      <section className="demo-preview-section">
+        <div className="section-inner demo-preview-grid">
+          <div>
+            <div className="section-eyebrow">Aperçu</div>
+            <h2 className="section-title">Voyez le résultat avant de vous décider</h2>
+            <p className="section-sub" style={{marginBottom:'28px'}}>Un score de risque clair, des signaux détaillés et une recommandation concrète — exactement ce que vous recevez après chaque analyse.</p>
+            <Link to="/demo" className="btn btn-primary btn-large">Essayer la démo interactive →</Link>
+          </div>
+          <div className="demo-preview-img-wrap">
+            <img src={demoPreview} alt="Aperçu d'un rapport d'analyse Seculoca" />
+          </div>
+        </div>
+      </section>
 
       {/* PRICING */}
       <section id="tarifs">

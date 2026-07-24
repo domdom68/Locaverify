@@ -1,319 +1,266 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+const express = require('express');
+const router = express.Router();
+const { requireAuth, supabase } = require('../middleware/auth');
+const { getUserPlanState, deductOneAnalysis } = require('../lib/subscriptionManager');
+const { analyseListingImages, buildImageCriterion, updateImageRegistry } = require('../lib/imageAnalyzer');
+const { runCommunityChecks, updateCommunityDB, buildCommunityCriterion } = require('../lib/communityCheck');
+const { extractListingSignals, computeDeterministicScore, buildRecommendation } = require('../lib/aiSignalExtractor');
+const { lookupRentBenchmark } = require('../lib/priceBenchmark');
+const { pickBestDpeMatch, buildDpeCriterion, buildAdemeQueryUrl } = require('../lib/dpeCheck');
+const { checkDomainSpoof, buildDomainCriterion } = require('../lib/domainSpoofCheck');
 
-const API = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+const DPE_LABEL = 'Cohérence adresse/surface (DPE)';
 
-function ScoreRing({ score }) {
-  const radius = 52;
-  const circ = 2 * Math.PI * radius;
-  const offset = circ - (score / 100) * circ;
-  const color = score >= 70 ? '#DC2626' : score >= 35 ? '#D97706' : '#059669';
-  const label = score >= 70 ? 'Risque élevé' : score >= 35 ? 'Risque modéré' : 'Faible risque';
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <svg width="120" height="120" viewBox="0 0 120 120">
-        <circle cx="60" cy="60" r={radius} fill="none" stroke="#E2E8F0" strokeWidth="10"/>
-        <circle cx="60" cy="60" r={radius} fill="none" stroke={color} strokeWidth="10"
-          strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
-          style={{ transform: 'rotate(-90deg)', transformOrigin: '60px 60px', transition: 'stroke-dashoffset 1s ease' }}/>
-        <text x="60" y="57" textAnchor="middle" dominantBaseline="middle" fontSize="26" fontWeight="700" fill={color}>{score}</text>
-        <text x="60" y="77" textAnchor="middle" dominantBaseline="middle" fontSize="9" fill="#94A3B8">/100</text>
-      </svg>
-      <span className="text-sm font-semibold" style={{ color }}>{label}</span>
-    </div>
-  );
-}
+// POST /api/analyse
+router.post('/', requireAuth, async (req, res) => {
+  const { url, description, prix, duree_prix, localisation, proprietaire, telephone, imageUrls } = req.body;
+  const userId = req.user.id;
 
-function CriterionRow({ icon, label, status, detail }) {
-  const statusConfig = {
-    ok:      { icon: '✅', cls: 'text-green-600', bg: 'bg-green-50', label: 'OK' },
-    warning: { icon: '⚠️', cls: 'text-amber-600', bg: 'bg-amber-50', label: 'Attention' },
-    danger:  { icon: '🚨', cls: 'text-red-600',   bg: 'bg-red-50',   label: 'Suspect' },
-    info:    { icon: 'ℹ️', cls: 'text-blue-600',  bg: 'bg-blue-50',  label: 'Info' },
-  };
-  const cfg = statusConfig[status] || statusConfig.info;
-  return (
-    <div className="flex items-start gap-3 py-3 border-b border-slate-50 last:border-0">
-      <span className="text-lg flex-shrink-0">{cfg.icon}</span>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-sm font-semibold text-slate-900">{label}</p>
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.bg} ${cfg.cls}`}>{cfg.label}</span>
-        </div>
-        <p className={`text-xs mt-0.5 ${cfg.cls}`}>{detail}</p>
-      </div>
-    </div>
-  );
-}
+  const dureePrixMap = { jour: 'jour', semaine: 'semaine', mois: 'mois' };
+  const dureePrixLabel = dureePrixMap[duree_prix] || 'mois';
 
-const EMPTY_FORM = { url: '', description: '', prix: '', localisation: '', proprietaire: '', telephone: '', duree_prix: 'mois'  };
+  if (!description || !localisation) {
+    return res.status(400).json({ error: 'Champs obligatoires manquants : description, localisation.' });
+  }
 
-export default function Analyse() {
-  const { profile, refreshProfile } = useAuth();
-  const navigate = useNavigate();
-  const [form, setForm]       = useState(EMPTY_FORM);
-  const [loading, setLoading] = useState(false);
-  const [scraping, setScraping] = useState(false);
-  const [result, setResult]   = useState(null);
-  const [error, setError]     = useState('');
-  const [step, setStep]       = useState('idle');
-  const [mode, setMode]       = useState('full'); // 'full' | 'quick'
+  // ── Check plan & quota ───────────────────────────────────────
+  const planState = await getUserPlanState(userId);
+  if (!planState.canAnalyse) {
+    return res.status(402).json({ error: planState.reason, plan: planState.plan });
+  }
 
-  const credits = profile?.credits ?? 0;
-  const update = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
+  try {
+    // ── Run 4 checks in parallel: AI signal extraction + images + community + rent benchmark ────
+    const [aiResult, imageResult, communityResult, benchmarkResult] = await Promise.allSettled([
 
-  // ── Auto-fill from URL ───────────────────────────────────────
-  const handleUrlBlur = async () => {
-    if (!form.url || !form.url.startsWith('http')) return;
-    setScraping(true);
-    try {
-      const { data: { session } } = await (await import('../lib/supabase')).supabase.auth.getSession();
-      const res = await fetch(`${API}/api/scrape`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ url: form.url }),
-      });
-      const data = await res.json();
-      if (data.success && data.data) {
-        setForm(f => ({
-          ...f,
-          description:  data.data.description  || f.description,
-          prix:         data.data.prix          || f.prix,
-          localisation: data.data.localisation  || f.localisation,
-        }));
-      }
-    } catch {}
-    setScraping(false);
-  };
+      // 1. GPT-4o — STEP 1 ONLY: extract factual signals, no scoring here
+      extractListingSignals({ description, prix, dureePrixLabel, localisation, proprietaire, telephone, url }),
 
-  // ── DPE cross-check, step 2 ───────────────────────────────────
-  // The ADEME API blocks server/datacenter IPs, so this network call
-  // must happen from the browser. We fetch the raw candidates here, then
-  // send them to the backend which does the actual matching + scoring
-  // (all business logic stays server-side and auditable). This runs
-  // in the background after the main result is already shown — a bonus
-  // signal that refines the score a moment later, not a blocking step.
-  const verifyDpe = async (analyseId, queryUrl, token) => {
-    try {
-      const ademeRes = await fetch(queryUrl);
-      const ademeJson = await ademeRes.json();
+      // 2. Image analysis (if URL provided)
+      (async () => {
+        if (!url && (!imageUrls || imageUrls.length === 0)) {
+          return { checked: false, reason: 'URL non fournie', results: [], summary: { dangerCount: 0, warningCount: 0, totalChecked: 0 } };
+        }
+        if (url) {
+          try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 8000);
+            const pageRes = await fetch(url, {
+              signal: controller.signal,
+              headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Seculoca/1.0)' },
+            });
+            clearTimeout(timeout);
+            const html = await pageRes.text();
+            return analyseListingImages(html, url, process.env.GOOGLE_VISION_API_KEY);
+          } catch {
+            return { checked: false, reason: 'Page inaccessible pour l\'analyse des images', results: [], summary: { dangerCount: 0, warningCount: 0, totalChecked: 0 } };
+          }
+        }
+        return { checked: false, reason: 'Aucune URL fournie pour extraire les images', results: [], summary: { dangerCount: 0, warningCount: 0, totalChecked: 0 } };
+      })(),
 
-      const verifyRes = await fetch(`${API}/api/analyse/${analyseId}/dpe-verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ candidates: ademeJson.results || [] }),
-      });
-      if (!verifyRes.ok) return;
+      // 3. Community database check
+      runCommunityChecks({ url, iban: null, phone: telephone || null, email: null }),
 
-      const verifyData = await verifyRes.json();
-      setResult(prev => (prev ? { ...prev, risk_score: verifyData.risk_score, criteria: verifyData.criteria } : prev));
-    } catch {
-      // Silent fail — DPE check is a bonus signal, not a critical path.
-      // If it fails (ad blocker, offline, etc.), the report still stands
-      // on its other criteria.
+      // 4. Real ANIL rent-per-m² benchmark for this localisation
+      lookupRentBenchmark(localisation),
+    ]);
+
+    // ── STEP 2: deterministic scoring from extracted signals ────
+    if (aiResult.status !== 'fulfilled') {
+      throw new Error('Extraction des signaux IA échouée : ' + aiResult.reason?.message);
     }
-  };
+    const signals = aiResult.value;
+    const benchmark = benchmarkResult.status === 'fulfilled' ? benchmarkResult.value : null;
+    const { score: baseScore, criteria: aiCriteria, summary: aiSummary } = computeDeterministicScore(signals, benchmark);
 
-  const handleSubmit = async e => {
-    e.preventDefault();
-    if (credits <= 0) return;
-    setLoading(true); setError(''); setStep('loading');
-    try {
-      const { data: { session } } = await (await import('../lib/supabase')).supabase.auth.getSession();
-      const res = await fetch(`${API}/api/analyse`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-        body: JSON.stringify(form),
-      });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
-      const data = await res.json();
-      setResult(data); setStep('done');
-      await refreshProfile();
+    // ── DPE cross-check: the ADEME API blocks server/datacenter IPs, so
+    // the actual network fetch has to happen client-side (browser). Here
+    // we only prepare the criterion + tell the frontend whether it needs
+    // to do a follow-up check (see buildAdemeQueryUrl + /:id/dpe-verify).
+    const surfaceM2 = signals.prix?.surface_m2 || null;
+    let dpeCriterion;
+    let dpeCheckInfo = { needed: false };
 
-      // Kick off the DPE check in the background (non-blocking)
-      if (data.dpeCheck?.needed && data.dpeCheck?.queryUrl) {
-        verifyDpe(data.id, data.dpeCheck.queryUrl, session.access_token);
-      }
-
-      // Check low credits
-      fetch(`${API}/api/alerts/low-credits`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${session.access_token}` },
-      }).catch(() => {});
-    } catch (err) {
-      setError(err.message); setStep('idle');
+    if (signals.adresse_precise) {
+      dpeCriterion = {
+        label: DPE_LABEL,
+        status: 'info',
+        detail: 'Adresse précise détectée — vérification auprès de la base officielle DPE en cours.',
+      };
+      dpeCheckInfo = {
+        needed: true,
+        queryUrl: buildAdemeQueryUrl(signals.adresse_precise, signals.code_postal),
+      };
+    } else {
+      dpeCriterion = buildDpeCriterion(null, surfaceM2);
     }
-    setLoading(false);
-  };
 
-  return (
-    <div className="animate-fadeIn max-w-2xl mx-auto">
-      <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-serif text-slate-900 mb-1" style={{ fontFamily: "'DM Serif Display', serif" }}>
-            Analyser une annonce
-          </h1>
-          <p className="text-sm text-slate-500">Collez l'URL et les champs se remplissent automatiquement.</p>
-        </div>
-        {/* Mode toggle */}
-        {step !== 'done' && (
-          <div className="flex bg-slate-100 rounded-lg p-1 self-start">
-            {[['full', '📋 Complet'], ['quick', '⚡ Rapide']].map(([m, label]) => (
-              <button key={m} onClick={() => setMode(m)}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${mode === m ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+    // ── Build additional criteria ────────────────────────────
+    const imageCriterion = buildImageCriterion(
+      imageResult.status === 'fulfilled' ? imageResult.value : { checked: false, reason: 'Erreur analyse images', results: [], summary: { dangerCount: 0, warningCount: 0, totalChecked: 0 } }
+    );
 
-      {credits === 0 && step !== 'done' && (
-        <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl mb-5 text-sm text-red-700">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="flex-shrink-0"><circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5"/><path d="M8 5V8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><circle cx="8" cy="11" r="0.75" fill="currentColor"/></svg>
-          Plus de crédits. <Link to="/paiement" className="font-semibold underline ml-1">Acheter un pack</Link>
-        </div>
-      )}
+    const communityCriterion = buildCommunityCriterion(
+      communityResult.status === 'fulfilled' ? communityResult.value : { hasHits: false, dangerCount: 0, warningCount: 0, results: {} }
+    );
 
-      {credits <= 2 && credits > 0 && step !== 'done' && (
-        <div className="flex items-center gap-3 p-3.5 bg-amber-50 border border-amber-200 rounded-xl mb-5 text-sm text-amber-800">
-          ⚠️ Il ne vous reste que <strong className="mx-1">{credits} crédit{credits > 1 ? 's' : ''}</strong>.
-          <Link to="/paiement" className="ml-auto text-amber-700 font-semibold hover:underline flex-shrink-0">Recharger →</Link>
-        </div>
-      )}
+    // ── Domain spoofing check (typosquatting de plateformes connues) ──
+    const domainSpoofResult = checkDomainSpoof(url);
+    const domainCriterion = buildDomainCriterion(domainSpoofResult);
 
-      {step !== 'done' && (
-        <div className="bg-white rounded-2xl border border-slate-100 p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
+    // ── Merge all criteria ───────────────────────────────────
+    const allCriteria = [
+      ...aiCriteria,
+      imageCriterion,
+      communityCriterion,
+      domainCriterion,
+      dpeCriterion,
+    ];
 
-            {/* URL field — always shown */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                URL de l'annonce
-                <span className="text-slate-400 font-normal ml-1">(remplissage automatique)</span>
-              </label>
-              <div className="relative">
-                <input type="url" value={form.url} onChange={update('url')} onBlur={handleUrlBlur}
-                  placeholder="https://www.leboncoin.fr/annonce/..."
-                  className="w-full px-4 py-3 pr-10 rounded-xl border border-slate-200 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"/>
-                {scraping && <div className="absolute right-3 top-3.5 w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"/>}
-              </div>
-              {scraping && <p className="text-xs text-blue-600 mt-1 flex items-center gap-1"><span className="animate-pulse">●</span> Récupération des informations…</p>}
-            </div>
+    // ── Adjust global risk score based on image/community signals ────
+    // (DPE is NOT included yet — it's added later by /dpe-verify once the
+    // browser has done the actual ADEME fetch and sent back the results.)
+    const imgData = imageResult.status === 'fulfilled' ? imageResult.value : null;
+    const comData = communityResult.status === 'fulfilled' ? communityResult.value : null;
 
-            {/* Quick mode: just URL + description */}
-            {mode === 'quick' ? (
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Texte ou informations complémentaires</label>
-                <textarea value={form.description} onChange={update('description')} required rows={4}
-                  placeholder="Si l'URL n'a pas suffi, collez ici le texte de l'annonce…"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none"/>
-                {(!form.localisation || !form.prix) && (
-                  <p className="text-xs text-amber-600 mt-1">⚠️ Pour une analyse plus précise, <button type="button" onClick={() => setMode('full')} className="underline font-medium">passez en mode Complet</button> pour renseigner ville et prix.</p>
-                )}
-              </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Prix (€)</label>
-                      <div className="flex gap-2">
-                        <input type="number" value={form.prix} onChange={update('prix')} required placeholder="850"
-                          className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"/>
-                        <select value={form.duree_prix} onChange={update('duree_prix')}
-                          className="px-3 py-3 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
-                          <option value="jour">/ jour</option>
-                          <option value="semaine">/ semaine</option>
-                          <option value="mois">/ mois</option>
-                        </select>
-                      </div>
-                    </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Ville / Localisation</label>
-                    <input type="text" value={form.localisation} onChange={update('localisation')} required placeholder="Paris 15e"
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"/>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Nom du propriétaire / contact</label>
-                  <input type="text" value={form.proprietaire} onChange={update('proprietaire')} placeholder="Jean Dupont"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"/>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Numéro de téléphone du contact</label>
-                  <input type="tel" value={form.telephone} onChange={update('telephone')} placeholder="06 12 34 56 78"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"/>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Texte de l'annonce
-                    {form.description && <span className="text-green-600 font-normal ml-2 text-xs">✓ Rempli automatiquement</span>}
-                  </label>
-                  <textarea value={form.description} onChange={update('description')} required rows={6}
-                    placeholder="Collez ici le texte complet de l'annonce…"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none"/>
-                </div>
-              </>
-            )}
+    let adjustedScore = baseScore;
 
-            {error && (
-              <div className="flex items-center gap-2 p-3 bg-red-50 rounded-lg text-sm text-red-600">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5"/><path d="M8 5V8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><circle cx="8" cy="11" r="0.75" fill="currentColor"/></svg>
-                {error}
-              </div>
-            )}
+    if (imgData?.summary?.dangerCount > 0) adjustedScore = Math.min(100, adjustedScore + 25);
+    else if (imgData?.summary?.warningCount > 0) adjustedScore = Math.min(100, adjustedScore + 10);
 
-            <button type="submit" disabled={loading || credits === 0}
-              className="w-full py-3.5 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-              {loading
-                ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>Analyse en cours…</>
-                : <>🔍 Analyser — 1 crédit</>}
-            </button>
-            <p className="text-center text-xs text-slate-400">
-              Il vous reste <strong className="text-slate-600">{credits} crédit{credits !== 1 ? 's' : ''}</strong>
-            </p>
-          </form>
-        </div>
-      )}
+    if (comData?.dangerCount > 0) adjustedScore = Math.min(100, adjustedScore + 30);
+    else if (comData?.warningCount > 0) adjustedScore = Math.min(100, adjustedScore + 15);
 
-      {step === 'loading' && (
-        <div className="mt-5 bg-blue-50 rounded-2xl border border-blue-100 p-8 text-center animate-fadeIn">
-          <div className="w-10 h-10 border-[3px] border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"/>
-          <p className="text-blue-700 font-medium text-sm">Analyse IA en cours…</p>
-          <p className="text-blue-400 text-xs mt-1">Vérification du prix · Analyse du texte · Détection des signaux</p>
-        </div>
-      )}
+    if (domainSpoofResult.suspect) adjustedScore = Math.min(100, adjustedScore + 35);
 
-      {step === 'done' && result && (
-        <div className="animate-fadeIn space-y-4">
-          <div className="bg-white rounded-2xl border border-slate-100 p-6">
-            <div className="flex flex-col sm:flex-row items-center gap-5">
-              <ScoreRing score={result.risk_score}/>
-              <div className="flex-1 text-center sm:text-left">
-                <h2 className="font-serif text-xl text-slate-900 mb-2" style={{ fontFamily: "'DM Serif Display', serif" }}>Résultat de l'analyse</h2>
-                <p className="text-sm text-slate-600 leading-relaxed">{result.summary}</p>
-              </div>
-            </div>
-          </div>
+    adjustedScore = Math.round(Math.min(100, adjustedScore));
 
-          <div className="bg-white rounded-2xl border border-slate-100 p-5">
-            <h3 className="font-semibold text-slate-900 text-sm mb-1">Détail des critères</h3>
-            {result.criteria?.map((c, i) => <CriterionRow key={i} {...c}/>)}
-          </div>
+    const recommendation = buildRecommendation(adjustedScore);
 
-          <div className="flex gap-3">
-            <button onClick={() => { setStep('idle'); setResult(null); setForm(EMPTY_FORM); }}
-              className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-700 font-medium text-sm hover:bg-slate-50 transition-colors">
-              Nouvelle analyse
-            </button>
-            <Link to={`/rapport/${result.id}`}
-              className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 transition-colors text-center flex items-center justify-center gap-2">
-              📄 Voir le rapport complet
-            </Link>
-          </div>
-        </div>
-      )}
-    </div>
+    // ── Extract perceptual hashes for the proprietary image registry ──
+    const imageHashes = (imgData?.results || [])
+      .map(r => r.perceptualHash)
+      .filter(Boolean);
+
+    // ── Save analysis ────────────────────────────────────────
+    const { data: saved, error: saveError } = await supabase
+      .from('analyses')
+      .insert({
+        user_id: userId,
+        url: url || null,
+        description: description.slice(0, 2000),
+        prix: prix ? parseFloat(prix) : null,
+        duree_prix: dureePrixLabel,
+        localisation,
+        proprietaire: proprietaire || null,
+        telephone: telephone || null,
+        adresse_precise: signals.adresse_precise || null,
+        surface_m2: surfaceM2,
+        risk_score: adjustedScore,
+        summary: aiSummary,
+        recommendation,
+        criteria: allCriteria,
+        title: `${localisation} — ${prix ? prix + '€/' + dureePrixLabel : 'prix non renseigné'}`,
+        image_check_summary: imgData ? { ...imgData.summary, hashes: imageHashes } : null,
+        community_check_summary: comData ? { hasHits: comData.hasHits, dangerCount: comData.dangerCount } : null,
+      })
+      .select()
+      .single();
+
+    if (saveError) throw new Error('Erreur sauvegarde : ' + saveError.message);
+
+    // ── Deduct credit ────────────────────────────────────────
+    await deductOneAnalysis(userId, planState.plan);
+
+    // ── Track occurrence in the community registry (async, non-blocking) ──
+    updateCommunityDB({
+      url,
+      iban: null,
+      phone: telephone || null,
+      email: null,
+      riskScore: adjustedScore,
+      isScam: false,
+    }).catch(console.error);
+
+    if (imageHashes.length > 0) {
+      updateImageRegistry({
+        hashes: imageHashes,
+        isScam: false,
+        analyseId: saved.id,
+      }).catch(console.error);
+    }
+
+    return res.json({
+      id: saved.id,
+      risk_score: adjustedScore,
+      summary: aiSummary,
+      recommendation,
+      criteria: allCriteria,
+      imageAnalysis: imgData?.summary || null,
+      communityCheck: comData ? { hasHits: comData.hasHits, dangerCount: comData.dangerCount } : null,
+      dpeCheck: dpeCheckInfo,
+    });
+
+  } catch (err) {
+    console.error('Analyse error:', err);
+    return res.status(500).json({ error: err.message || 'Erreur lors de l\'analyse IA.' });
+  }
+});
+
+// POST /api/analyse/:id/dpe-verify
+// Called by the frontend AFTER it has fetched the raw ADEME results
+// client-side (browser IP isn't blocked, unlike Railway's). We do the
+// actual matching + scoring here, server-side, so the logic stays
+// centralised and auditable — the browser is just relaying network data.
+router.post('/:id/dpe-verify', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { candidates } = req.body; // raw "results" array from the ADEME API
+  const userId = req.user.id;
+
+  const { data: analyse, error: fetchError } = await supabase
+    .from('analyses')
+    .select('id, user_id, risk_score, criteria, adresse_precise, surface_m2')
+    .eq('id', id)
+    .eq('user_id', userId)
+    .single();
+
+  if (fetchError || !analyse) {
+    return res.status(404).json({ error: 'Analyse introuvable.' });
+  }
+
+  if (!analyse.adresse_precise) {
+    return res.status(400).json({ error: 'Cette analyse ne comporte pas d\'adresse précise à vérifier.' });
+  }
+
+  const dpeMatch = pickBestDpeMatch(candidates, analyse.adresse_precise);
+  const newDpeCriterion = buildDpeCriterion(dpeMatch, analyse.surface_m2);
+
+  let scoreDelta = 0;
+  if (newDpeCriterion.status === 'danger') scoreDelta = 25;
+  else if (newDpeCriterion.status === 'warning') scoreDelta = 10;
+
+  const newScore = Math.min(100, (analyse.risk_score || 0) + scoreDelta);
+
+  const updatedCriteria = (analyse.criteria || []).map(c =>
+    c.label === DPE_LABEL ? newDpeCriterion : c
   );
-}
+
+  const { error: updateError } = await supabase
+    .from('analyses')
+    .update({ risk_score: newScore, criteria: updatedCriteria })
+    .eq('id', id)
+    .eq('user_id', userId);
+
+  if (updateError) {
+    return res.status(500).json({ error: 'Erreur mise à jour : ' + updateError.message });
+  }
+
+  return res.json({
+    risk_score: newScore,
+    criteria: updatedCriteria,
+    dpeCriterion: newDpeCriterion,
+  });
+});
+
+module.exports = router;
