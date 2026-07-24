@@ -242,3 +242,17 @@ router.post('/:id/dpe-verify', requireAuth, async (req, res) => {
     .from('analyses')
     .update({ risk_score: newScore, criteria: updatedCriteria })
     .eq('id', id)
+    .eq('user_id', userId);
+
+  if (updateError) {
+    return res.status(500).json({ error: 'Erreur mise à jour : ' + updateError.message });
+  }
+
+  return res.json({
+    risk_score: newScore,
+    criteria: updatedCriteria,
+    dpeCriterion: newDpeCriterion,
+  });
+});
+
+module.exports = router;
