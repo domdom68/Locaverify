@@ -115,7 +115,7 @@ export default function Landing() {
         section { padding: 80px 5%; }
         .section-inner { max-width: 1100px; margin: 0 auto; }
         .section-eyebrow { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--blue-500); font-weight: 600; margin-bottom: 12px; }
-        .section-title { font-size: clamp(1.6rem,3vw,2.2rem); font-weight: 800; color: var(--blue-900); margin-bottom: 16px; letter-spacing: -0.5px; }
+        .section-title { font-size: clamp(1.6rem,3vw,2.2rem); font-weight: 800; color: var(--blue-900); margin-bottom: 16px; letter-spacing: -0.5px; line-height: 1.3; }
         .section-sub { font-size: 1rem; color: var(--muted); max-width: 560px; line-height: 1.7; margin-bottom: 52px; }
         .how-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 32px; }
         .step-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 32px 28px; transition: box-shadow 0.2s, transform 0.2s; }
