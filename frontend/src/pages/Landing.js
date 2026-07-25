@@ -128,7 +128,7 @@ export default function Landing() {
         .demo-preview-grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 48px; align-items: center; }
         .demo-preview-img-wrap { border-radius: 16px; overflow: hidden; box-shadow: 0 12px 40px rgba(11,31,74,0.15); border: 1px solid var(--border); }
         .demo-preview-img-wrap img { display: block; width: 100%; height: auto; }
-        @media (max-width: 900px) { .demo-preview-grid { grid-template-columns: 1fr; } .demo-preview-img-wrap { order: -1; } }
+       @media (max-width: 900px) { .demo-preview-grid { grid-template-columns: 1fr; } }
         .pricing-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 20px; }
         .plan-card { border: 1.5px solid var(--border); border-radius: 16px; padding: 28px 24px; background: white; position: relative; transition: box-shadow 0.2s, transform 0.2s; }
         .plan-card:hover { box-shadow: 0 8px 32px rgba(30,95,212,0.1); transform: translateY(-3px); }
