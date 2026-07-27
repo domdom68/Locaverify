@@ -54,7 +54,7 @@ async function getUserPlanState(userId) {
     if (planInfo.fairUse !== null && usageThisYear >= planInfo.fairUse) {
       return {
         plan, canAnalyse: false,
-        reason: `Limite d'utilisation raisonnable atteinte (${planInfo.fairUse} analyses/an). Contactez le support si vous avez un besoin exceptionnel.`,
+        reason: `Limite d'utilisation raisonnable atteinte (${planInfo.fairUse} analyses/mois). Contactez le support si vous avez un besoin exceptionnel.`,
         usageThisYear, fairUse: planInfo.fairUse,
       };
     }
