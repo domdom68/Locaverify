@@ -276,7 +276,7 @@ export default function Landing() {
                 <li><span className="check">✓</span> 5 analyses</li>
                 <li><span className="check">✓</span> Score de risque global</li>
                 <li><span className="check">✓</span> Tous les signaux détectés</li>
-                <li><span className="cross">✗</span> Rapport détaillé</li>
+                <li><span className="check">✓</span> Rapport détaillé</li>
                 <li><span className="cross">✗</span> Historique</li>
               </ul>
               <Link to="/connexion?mode=register" className="btn btn-outline" style={{width:'100%',justifyContent:'center'}}>Commencer</Link>
