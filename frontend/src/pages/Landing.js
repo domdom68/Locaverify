@@ -275,7 +275,7 @@ export default function Landing() {
               <ul className="plan-features">
                 <li><span className="check">✓</span> 5 analyses</li>
                 <li><span className="check">✓</span> Score de risque global</li>
-                <li><span className="check">✓</span> 3 signaux détectés</li>
+                <li><span className="check">✓</span> Tous les signaux détectés</li>
                 <li><span className="cross">✗</span> Rapport détaillé</li>
                 <li><span className="cross">✗</span> Historique</li>
               </ul>
