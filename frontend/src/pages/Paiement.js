@@ -175,7 +175,7 @@ export default function Paiement() {
               <p className="text-xs text-slate-400 mb-3">{p.description}</p>
               <div className="flex items-baseline gap-1">
                 <span className="text-4xl font-bold text-slate-900">{p.price}</span>
-                {p.isSubscription && <span className="text-slate-400 text-sm">/an</span>}
+                {p.isSubscription && <span className="text-slate-400 text-sm">/mois</span>}
               </div>
               {p.perUnit && <p className="text-xs text-slate-400 mt-1">{p.perUnit}</p>}
             </div>
@@ -240,17 +240,17 @@ export default function Paiement() {
           </thead>
           <tbody className="divide-y divide-slate-50">
             {[
-              ['Nombre d\'analyses',    '5',          '20/mois',    '60/mois',      'Illimité'],
-              ['Rapport PDF',           '✅',          '✅',          '✅',            '✅'],
-              ['Reverse image search',  '✅',          '✅',          '✅',            '✅'],
-              ['Base communautaire',    '✅',          '✅',          '✅',            '✅'],
-              ['Historique analyses',   '30 jours',   '30 jours',   'Illimité',     'Illimité'],
-              ['Partage de rapport',    '❌',          '✅',          '✅',            '✅'],
-              ['Export CSV',            '❌',          '❌',          '❌',            '✅'],
-              ['Accès API REST',        '❌',          '❌',          '❌',            '✅'],
-              ['Support',               '—',          'Email',      'Email',        'Prioritaire'],
-              ['Facturation pro',       '❌',          '❌',          '❌',            '✅'],
-              ['Prix',                  'Gratuit',    '9,99 €/mois','29,99 €/mois', '99,99 €/mois'],
+              ['Nombre d\'analyses',           '5',        '20/mois',     '60/mois',      'Illimité'],
+              ['Rapport PDF',                   '✅',        '✅',           '✅',            '✅'],
+              ['Reverse image search',          '✅',        '✅',           '✅',            '✅'],
+              ['Base communautaire',            '✅',        '✅',           '✅',            '✅'],
+              ['Vérifier un paiement demandé',  '✅',        '✅',           '✅',            '✅'],
+              ['Partage de rapport',            '✅',        '✅',           '✅',            '✅'],
+              ['Historique des analyses',       '❌',        '✅',           '✅',            '✅'],
+              ['Export PDF',                    '❌',        '❌',           '✅',            '✅'],
+              ['Clé API pour intégration',      '❌',        '❌',           '❌',            '✅'],
+              ['Support',                       '—',         'Email',       'Email',        'Prioritaire'],
+              ['Prix',                          'Gratuit',   '9,99 €/mois', '29,99 €/mois', '99,99 €/mois'],
                           ].map(([feature, ...vals]) => (
                 <tr key={feature} className="hover:bg-slate-50/50">
                   <td className="px-5 py-3 text-slate-700 font-medium">{feature}</td>
