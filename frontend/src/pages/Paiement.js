@@ -11,7 +11,7 @@ const FREE_PACK = {
   badge: '✦ Offert', badgeColor: 'bg-green-100 text-green-700',
   highlight: false, isSubscription: false, isFree: true,
   description: 'Pour découvrir le service',
-  features: ['5 analyses incluses à l\'inscription', 'Rapport PDF téléchargeable', 'Sans carte bancaire'],
+  features: ['5 analyses incluses à l\'inscription', 'Rapport PDF téléchargeable', 'Vérifier un paiement demandé', 'Sans carte bancaire'],
   cta: 'Déjà activé ✓', ctaDisabled: true,
 };
 
@@ -21,7 +21,7 @@ const PRODUCTS = [
     badge: 'Pour débuter', badgeColor: 'bg-slate-100 text-slate-600',
     highlight: false, isSubscription: true,
     description: 'Pour une recherche régulière',
-    features: ['20 analyses / mois', 'Rapport PDF', 'Historique 30 jours'],
+    features: ['20 analyses / mois', 'Rapport complet', 'Vérifier un paiement demandé', 'Historique des analyses'],
     cta: 'Choisir — 9,99 €/mois',
   },
   {
@@ -29,7 +29,7 @@ const PRODUCTS = [
     badge: 'Le plus populaire', badgeColor: 'bg-blue-100 text-blue-700',
     highlight: true, isSubscription: true,
     description: 'Pour les particuliers actifs',
-    features: ['60 analyses / mois', 'Rapport PDF', 'Historique illimité', 'Export PDF'],
+    features: ['60 analyses / mois', 'Rapport complet', 'Vérifier un paiement demandé', 'Historique des analyses', 'Export PDF'],
     cta: 'Choisir — 29,99 €/mois',
   },
   {
@@ -37,7 +37,7 @@ const PRODUCTS = [
     badge: 'Professionnels', badgeColor: 'bg-purple-100 text-purple-700',
     highlight: false, isSubscription: true,
     description: 'Agents, juristes, associations',
-    features: ['Analyses illimitées', 'Accès API REST', 'Export CSV historique', 'Support prioritaire'],
+    features: ['Analyses illimitées', 'Rapport complet', 'Vérifier un paiement demandé', 'Historique des analyses', 'Export PDF', 'Clé API pour intégration'],
     cta: 'Choisir — 99,99 €/mois',
   },
 ];
@@ -47,7 +47,8 @@ function CurrentPlanBanner({ profile, planState }) {
   const navigate = useNavigate();
   if (!profile || profile.plan === 'free') return null;
 
-  const isSubscription = profile.plan === 'solo' || profile.plan === 'pro';
+  const isSubscription = ['essentiel', 'max', 'pro'].includes(profile.plan);
+  const planLabel = { essentiel: 'Essentiel', max: 'Max', pro: 'Pro' }[profile.plan] || profile.plan;
   const expiresAt = profile.plan_expires_at
     ? new Date(profile.plan_expires_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
     : null;
@@ -70,11 +71,11 @@ function CurrentPlanBanner({ profile, planState }) {
         </div>
         <div>
           <p className="font-semibold text-blue-900 text-sm">
-            Abonnement {profile.plan === 'solo' ? 'Solo' : 'Pro'} actif
+            Abonnement {planLabel} actif
           </p>
           <p className="text-blue-700 text-xs mt-0.5">
             {isSubscription
-              ? `${planState?.usageThisYear || 0} analyses utilisées cette année · Renouvellement ${expiresAt || 'automatique'}`
+              ? `${planState?.usageThisYear || 0} analyses utilisées ce mois-ci · Renouvellement ${expiresAt || 'automatique'}`
               : `${profile.credits || 0} crédits restants`}
           </p>
         </div>
