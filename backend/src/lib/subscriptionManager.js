@@ -109,13 +109,18 @@ async function activatePlan(userId, planKey) {
   const expiresAt = new Date(now);
   expiresAt.setMonth(expiresAt.getMonth() + 1);
 
-  await supabase.from('profiles').update({
+  const { error } = await supabase.from('profiles').update({
     plan: planKey,
     plan_expires_at: expiresAt.toISOString(),
     plan_renewed_at: now.toISOString(),
     analyses_this_year: 0,
     low_credit_notified: false,
   }).eq('id', userId);
+
+  if (error) {
+    console.error(`❌ Échec activation plan ${planKey} pour user ${userId}:`, error.message);
+    throw error;
+  }
 }
 
 /**
