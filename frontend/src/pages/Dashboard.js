@@ -16,16 +16,22 @@ export default function Dashboard() {
 
   useEffect(() => {
     async function fetchAnalyses() {
+      if (!profile) return;
+      if (profile.plan === 'free') {
+        setAnalyses([]);
+        setLoading(false);
+        return;
+      }
       const { data } = await supabase
         .from('analyses')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(500);
       setAnalyses(data ?? []);
       setLoading(false);
     }
     fetchAnalyses();
-  }, []);
+  }, [profile]);
 
   const credits = profile?.credits ?? 0;
 
@@ -107,6 +113,14 @@ export default function Dashboard() {
         {loading ? (
           <div className="p-8 text-center">
             <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          </div>
+        ) : profile?.plan === 'free' ? (
+          <div className="p-12 text-center">
+            <div className="text-4xl mb-3">🔒</div>
+            <p className="text-slate-500 text-sm mb-4">L'historique des analyses est réservé aux plans payants.</p>
+            <Link to="/paiement" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors">
+              Voir les plans →
+            </Link>
           </div>
         ) : analyses.length === 0 ? (
           <div className="p-12 text-center">
