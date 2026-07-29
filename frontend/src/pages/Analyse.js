@@ -90,22 +90,28 @@ export default function Analyse() {
   // ── DPE cross-check, step 2 ───────────────────────────────────
   const verifyDpe = async (analyseId, queryUrl, token) => {
     try {
+      console.log('[DPE] Requête ADEME:', queryUrl);
       const ademeRes = await fetch(queryUrl);
+      console.log('[DPE] Statut réponse ADEME:', ademeRes.status, ademeRes.statusText);
       const ademeJson = await ademeRes.json();
+      console.log('[DPE] Nombre de résultats ADEME:', ademeJson.results?.length || 0);
 
       const verifyRes = await fetch(`${API}/api/analyse/${analyseId}/dpe-verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ candidates: ademeJson.results || [] }),
       });
-      if (!verifyRes.ok) return;
+      if (!verifyRes.ok) {
+        console.error('[DPE] Échec dpe-verify backend:', verifyRes.status, await verifyRes.text());
+        return;
+      }
 
       const verifyData = await verifyRes.json();
+      console.log('[DPE] Score mis à jour avec succès:', verifyData.risk_score);
       setResult(prev => (prev ? { ...prev, risk_score: verifyData.risk_score, criteria: verifyData.criteria } : prev));
-    } catch {
-      // Silent fail — DPE check is a bonus signal, not a critical path.
+    } catch (err) {
+      console.error('[DPE] Échec de la vérification DPE:', err);
     }
-  };
 
   const handleSubmit = async e => {
     e.preventDefault();
