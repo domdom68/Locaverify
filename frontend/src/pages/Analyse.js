@@ -112,6 +112,7 @@ export default function Analyse() {
     } catch (err) {
       console.error('[DPE] Échec de la vérification DPE:', err);
     }
+  };
 
   const handleSubmit = async e => {
     e.preventDefault();
