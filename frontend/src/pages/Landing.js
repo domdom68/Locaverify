@@ -276,7 +276,8 @@ export default function Landing() {
                 <li><span className="check">✓</span> 5 analyses</li>
                 <li><span className="check">✓</span> Score de risque global</li>
                 <li><span className="check">✓</span> Tous les signaux détectés</li>
-                <li><span className="check">✓</span> Rapport détaillé</li>
+                <li><span className="check">✓</span> Rapport complet</li>
+                <li><span className="check">✓</span> Vérifier un paiement demandé</li>
                 <li><span className="cross">✗</span> Historique</li>
               </ul>
               <Link to="/connexion?mode=register" className="btn btn-outline" style={{width:'100%',justifyContent:'center'}}>Commencer</Link>
@@ -290,7 +291,8 @@ export default function Landing() {
                 <li><span className="check">✓</span> 20 analyses / mois</li>
                 <li><span className="check">✓</span> Score de risque global</li>
                 <li><span className="check">✓</span> Rapport complet</li>
-                <li><span className="check">✓</span> Historique 30 jours</li>
+                <li><span className="check">✓</span> Vérifier un paiement demandé</li>
+                <li><span className="check">✓</span> Historique des analyses</li>
                 <li><span className="cross">✗</span> Export PDF</li>
               </ul>
               <Link to="/connexion?mode=register" className="btn btn-outline" style={{width:'100%',justifyContent:'center'}}>Choisir</Link>
@@ -305,7 +307,8 @@ export default function Landing() {
                 <li><span className="check">✓</span> 60 analyses / mois</li>
                 <li><span className="check">✓</span> Score de risque global</li>
                 <li><span className="check">✓</span> Rapport complet</li>
-                <li><span className="check">✓</span> Historique illimité</li>
+                <li><span className="check">✓</span> Vérifier un paiement demandé</li>
+                <li><span className="check">✓</span> Historique des analyses</li>
                 <li><span className="check">✓</span> Export PDF</li>
               </ul>
               <Link to="/connexion?mode=register" className="btn btn-primary" style={{width:'100%',justifyContent:'center'}}>Choisir</Link>
@@ -319,8 +322,10 @@ export default function Landing() {
                 <li><span className="check">✓</span> Analyses illimitées</li>
                 <li><span className="check">✓</span> Score de risque global</li>
                 <li><span className="check">✓</span> Rapport complet</li>
-                <li><span className="check">✓</span> Historique illimité</li>
+                <li><span className="check">✓</span> Vérifier un paiement demandé</li>
+                <li><span className="check">✓</span> Historique des analyses</li>
                 <li><span className="check">✓</span> Export PDF</li>
+                <li><span className="check">✓</span> Clé API pour intégration</li>
                 <li><span className="check">✓</span> Support prioritaire</li>
               </ul>
               <Link to="/connexion?mode=register" className="btn btn-outline" style={{width:'100%',justifyContent:'center'}}>Choisir</Link>
