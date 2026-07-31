@@ -6,6 +6,10 @@ const { analyseListingImages, buildImageCriterion, updateImageRegistry } = requi
 const { runCommunityChecks, updateCommunityDB, buildCommunityCriterion } = require('../lib/communityCheck');
 const { extractListingSignals, computeDeterministicScore, buildRecommendation } = require('../lib/aiSignalExtractor');
 const { lookupRentBenchmark } = require('../lib/priceBenchmark');
+const { pickBestDpeMatch, buildDpeCriterion, buildAdemeQueryUrl } = require('../lib/dpeCheck');
+const { checkDomainSpoof, buildDomainCriterion } = require('../lib/domainSpoofCheck');
+
+const DPE_LABEL = 'Cohérence adresse/surface (DPE)';
 
 // POST /api/analyse
 router.post('/', requireAuth, async (req, res) => {
@@ -70,6 +74,28 @@ router.post('/', requireAuth, async (req, res) => {
     const benchmark = benchmarkResult.status === 'fulfilled' ? benchmarkResult.value : null;
     const { score: baseScore, criteria: aiCriteria, summary: aiSummary } = computeDeterministicScore(signals, benchmark);
 
+    // ── DPE cross-check: the ADEME API blocks server/datacenter IPs, so
+    // the actual network fetch has to happen client-side (browser). Here
+    // we only prepare the criterion + tell the frontend whether it needs
+    // to do a follow-up check (see buildAdemeQueryUrl + /:id/dpe-verify).
+    const surfaceM2 = signals.prix?.surface_m2 || null;
+    let dpeCriterion;
+    let dpeCheckInfo = { needed: false };
+
+    if (signals.adresse_precise) {
+      dpeCriterion = {
+        label: DPE_LABEL,
+        status: 'info',
+        detail: 'Adresse précise détectée — vérification auprès de la base officielle DPE en cours.',
+      };
+      dpeCheckInfo = {
+        needed: true,
+        queryUrl: buildAdemeQueryUrl(signals.adresse_precise, signals.code_postal),
+      };
+    } else {
+      dpeCriterion = buildDpeCriterion(null, surfaceM2);
+    }
+
     // ── Build additional criteria ────────────────────────────
     const imageCriterion = buildImageCriterion(
       imageResult.status === 'fulfilled' ? imageResult.value : { checked: false, reason: 'Erreur analyse images', results: [], summary: { dangerCount: 0, warningCount: 0, totalChecked: 0 } }
@@ -79,14 +105,22 @@ router.post('/', requireAuth, async (req, res) => {
       communityResult.status === 'fulfilled' ? communityResult.value : { hasHits: false, dangerCount: 0, warningCount: 0, results: {} }
     );
 
+    // ── Domain spoofing check (typosquatting de plateformes connues) ──
+    const domainSpoofResult = checkDomainSpoof(url);
+    const domainCriterion = buildDomainCriterion(domainSpoofResult);
+
     // ── Merge all criteria ───────────────────────────────────
     const allCriteria = [
       ...aiCriteria,
       imageCriterion,
       communityCriterion,
+      domainCriterion,
+      dpeCriterion,
     ];
 
     // ── Adjust global risk score based on image/community signals ────
+    // (DPE is NOT included yet — it's added later by /dpe-verify once the
+    // browser has done the actual ADEME fetch and sent back the results.)
     const imgData = imageResult.status === 'fulfilled' ? imageResult.value : null;
     const comData = communityResult.status === 'fulfilled' ? communityResult.value : null;
 
@@ -97,6 +131,8 @@ router.post('/', requireAuth, async (req, res) => {
 
     if (comData?.dangerCount > 0) adjustedScore = Math.min(100, adjustedScore + 30);
     else if (comData?.warningCount > 0) adjustedScore = Math.min(100, adjustedScore + 15);
+
+    if (domainSpoofResult.suspect) adjustedScore = Math.min(100, adjustedScore + 35);
 
     adjustedScore = Math.round(Math.min(100, adjustedScore));
 
@@ -119,6 +155,8 @@ router.post('/', requireAuth, async (req, res) => {
         localisation,
         proprietaire: proprietaire || null,
         telephone: telephone || null,
+        adresse_precise: signals.adresse_precise || null,
+        surface_m2: surfaceM2,
         risk_score: adjustedScore,
         summary: aiSummary,
         recommendation,
@@ -136,8 +174,6 @@ router.post('/', requireAuth, async (req, res) => {
     await deductOneAnalysis(userId, planState.plan);
 
     // ── Track occurrence in the community registry (async, non-blocking) ──
-    // isScam is always false here — only a confirmed human verdict via
-    // /api/feedback should ever mark something as a confirmed scam.
     updateCommunityDB({
       url,
       iban: null,
@@ -163,12 +199,68 @@ router.post('/', requireAuth, async (req, res) => {
       criteria: allCriteria,
       imageAnalysis: imgData?.summary || null,
       communityCheck: comData ? { hasHits: comData.hasHits, dangerCount: comData.dangerCount } : null,
+      dpeCheck: dpeCheckInfo,
     });
 
   } catch (err) {
     console.error('Analyse error:', err);
     return res.status(500).json({ error: err.message || 'Erreur lors de l\'analyse IA.' });
   }
+});
+
+// POST /api/analyse/:id/dpe-verify
+// Called by the frontend AFTER it has fetched the raw ADEME results
+// client-side (browser IP isn't blocked, unlike Railway's). We do the
+// actual matching + scoring here, server-side, so the logic stays
+// centralised and auditable — the browser is just relaying network data.
+router.post('/:id/dpe-verify', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { candidates } = req.body; // raw "results" array from the ADEME API
+  const userId = req.user.id;
+
+  const { data: analyse, error: fetchError } = await supabase
+    .from('analyses')
+    .select('id, user_id, risk_score, criteria, adresse_precise, surface_m2')
+    .eq('id', id)
+    .eq('user_id', userId)
+    .single();
+
+  if (fetchError || !analyse) {
+    return res.status(404).json({ error: 'Analyse introuvable.' });
+  }
+
+  if (!analyse.adresse_precise) {
+    return res.status(400).json({ error: 'Cette analyse ne comporte pas d\'adresse précise à vérifier.' });
+  }
+
+  const dpeMatch = pickBestDpeMatch(candidates, analyse.adresse_precise);
+  const newDpeCriterion = buildDpeCriterion(dpeMatch, analyse.surface_m2);
+
+  let scoreDelta = 0;
+  if (newDpeCriterion.status === 'danger') scoreDelta = 25;
+  else if (newDpeCriterion.status === 'warning') scoreDelta = 10;
+
+  const newScore = Math.min(100, (analyse.risk_score || 0) + scoreDelta);
+
+  const updatedCriteria = (analyse.criteria || []).map(c =>
+    c.label === DPE_LABEL ? newDpeCriterion : c
+  );
+
+  const { error: updateError } = await supabase
+    .from('analyses')
+    .update({ risk_score: newScore, criteria: updatedCriteria })
+    .eq('id', id)
+    .eq('user_id', userId);
+
+  if (updateError) {
+    return res.status(500).json({ error: 'Erreur mise à jour : ' + updateError.message });
+  }
+
+  return res.json({
+    risk_score: newScore,
+    criteria: updatedCriteria,
+    dpeCriterion: newDpeCriterion,
+  });
 });
 
 module.exports = router;

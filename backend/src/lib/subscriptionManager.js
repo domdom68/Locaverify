@@ -54,7 +54,7 @@ async function getUserPlanState(userId) {
     if (planInfo.fairUse !== null && usageThisYear >= planInfo.fairUse) {
       return {
         plan, canAnalyse: false,
-        reason: `Limite d'utilisation raisonnable atteinte (${planInfo.fairUse} analyses/an). Contactez le support si vous avez un besoin exceptionnel.`,
+        reason: `Limite d'utilisation raisonnable atteinte (${planInfo.fairUse} analyses/mois). Contactez le support si vous avez un besoin exceptionnel.`,
         usageThisYear, fairUse: planInfo.fairUse,
       };
     }
@@ -109,13 +109,18 @@ async function activatePlan(userId, planKey) {
   const expiresAt = new Date(now);
   expiresAt.setMonth(expiresAt.getMonth() + 1);
 
-  await supabase.from('profiles').update({
+  const { error } = await supabase.from('profiles').update({
     plan: planKey,
     plan_expires_at: expiresAt.toISOString(),
     plan_renewed_at: now.toISOString(),
     analyses_this_year: 0,
     low_credit_notified: false,
   }).eq('id', userId);
+
+  if (error) {
+    console.error(`❌ Échec activation plan ${planKey} pour user ${userId}:`, error.message);
+    throw error;
+  }
 }
 
 /**

@@ -51,6 +51,7 @@ router.post('/create-checkout', requireAuth, async (req, res) => {
       mode: product.type,
       success_url: `${process.env.FRONTEND_URL}/paiement/succes?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.FRONTEND_URL}/paiement`,
+      allow_promotion_codes: true,
       metadata: {
         userId: req.user.id,
         productId,

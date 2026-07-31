@@ -87,6 +87,33 @@ export default function Analyse() {
     setScraping(false);
   };
 
+  // ── DPE cross-check, step 2 ───────────────────────────────────
+  const verifyDpe = async (analyseId, queryUrl, token) => {
+    try {
+      console.log('[DPE] Requête ADEME:', queryUrl);
+      const ademeRes = await fetch(queryUrl);
+      console.log('[DPE] Statut réponse ADEME:', ademeRes.status, ademeRes.statusText);
+      const ademeJson = await ademeRes.json();
+      console.log('[DPE] Nombre de résultats ADEME:', ademeJson.results?.length || 0);
+
+      const verifyRes = await fetch(`${API}/api/analyse/${analyseId}/dpe-verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ candidates: ademeJson.results || [] }),
+      });
+      if (!verifyRes.ok) {
+        console.error('[DPE] Échec dpe-verify backend:', verifyRes.status, await verifyRes.text());
+        return;
+      }
+
+      const verifyData = await verifyRes.json();
+      console.log('[DPE] Score mis à jour avec succès:', verifyData.risk_score);
+      setResult(prev => (prev ? { ...prev, risk_score: verifyData.risk_score, criteria: verifyData.criteria } : prev));
+    } catch (err) {
+      console.error('[DPE] Échec de la vérification DPE:', err);
+    }
+  };
+
   const handleSubmit = async e => {
     e.preventDefault();
     if (credits <= 0) return;
@@ -102,7 +129,11 @@ export default function Analyse() {
       const data = await res.json();
       setResult(data); setStep('done');
       await refreshProfile();
-      // Check low credits
+
+      if (data.dpeCheck?.needed && data.dpeCheck?.queryUrl) {
+        verifyDpe(data.id, data.dpeCheck.queryUrl, session.access_token);
+      }
+
       fetch(`${API}/api/alerts/low-credits`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${session.access_token}` },
@@ -122,7 +153,6 @@ export default function Analyse() {
           </h1>
           <p className="text-sm text-slate-500">Collez l'URL et les champs se remplissent automatiquement.</p>
         </div>
-        {/* Mode toggle */}
         {step !== 'done' && (
           <div className="flex bg-slate-100 rounded-lg p-1 self-start">
             {[['full', '📋 Complet'], ['quick', '⚡ Rapide']].map(([m, label]) => (
@@ -153,7 +183,6 @@ export default function Analyse() {
         <div className="bg-white rounded-2xl border border-slate-100 p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
 
-            {/* URL field — always shown */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 URL de l'annonce
@@ -168,7 +197,6 @@ export default function Analyse() {
               {scraping && <p className="text-xs text-blue-600 mt-1 flex items-center gap-1"><span className="animate-pulse">●</span> Récupération des informations…</p>}
             </div>
 
-            {/* Quick mode: just URL + description */}
             {mode === 'quick' ? (
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">Texte ou informations complémentaires</label>
@@ -181,14 +209,14 @@ export default function Analyse() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1.5">Prix (€)</label>
                       <div className="flex gap-2">
                         <input type="number" value={form.prix} onChange={update('prix')} required placeholder="850"
-                          className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"/>
+                          className="min-w-0 flex-1 px-4 py-3 rounded-xl border border-slate-200 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"/>
                         <select value={form.duree_prix} onChange={update('duree_prix')}
-                          className="px-3 py-3 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+                          className="flex-shrink-0 px-3 py-3 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
                           <option value="jour">/ jour</option>
                           <option value="semaine">/ semaine</option>
                           <option value="mois">/ mois</option>

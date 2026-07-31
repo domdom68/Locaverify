@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
-
+const PLAN_QUOTAS = { essentiel: 20, max: 60 };
 function ScoreBadge({ score }) {
   if (score >= 70) return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-50 text-red-700 text-xs font-semibold">🔴 Risque élevé ({score})</span>;
   if (score >= 35) return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold">🟡 Risque modéré ({score})</span>;
@@ -16,16 +16,22 @@ export default function Dashboard() {
 
   useEffect(() => {
     async function fetchAnalyses() {
+      if (!profile) return;
+      if (profile.plan === 'free') {
+        setAnalyses([]);
+        setLoading(false);
+        return;
+      }
       const { data } = await supabase
         .from('analyses')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(500);
       setAnalyses(data ?? []);
       setLoading(false);
     }
     fetchAnalyses();
-  }, []);
+  }, [profile]);
 
   const credits = profile?.credits ?? 0;
 
@@ -55,10 +61,17 @@ export default function Dashboard() {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
         <div className="bg-white rounded-2xl border border-slate-100 p-5">
-          {profile?.plan === 'solo' || profile?.plan === 'pro' ? (
+          {['essentiel', 'max', 'pro'].includes(profile?.plan) ? (
             <>
               <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Abonnement</p>
-              <p className="text-2xl font-bold text-blue-600">{profile.plan === 'pro' ? '⭐ Pro' : '✓ Solo'}</p>
+              <p className="text-2xl font-bold text-blue-600">
+                {profile.plan === 'pro' ? '⭐ Pro' : profile.plan === 'max' ? '✓ Max' : '✓ Essentiel'}
+              </p>
+              {profile.plan !== 'pro' && (
+                <p className="text-xs text-slate-400 mt-1">
+                  {Math.max(0, (PLAN_QUOTAS[profile.plan] || 0) - (profile.analyses_this_year || 0))} analyses restantes ce mois-ci
+                </p>
+              )}
               <Link to="/paiement" className="text-xs text-blue-600 hover:underline mt-1 inline-block">Gérer →</Link>
             </>
           ) : (
@@ -100,6 +113,14 @@ export default function Dashboard() {
         {loading ? (
           <div className="p-8 text-center">
             <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          </div>
+        ) : profile?.plan === 'free' ? (
+          <div className="p-12 text-center">
+            <div className="text-4xl mb-3">🔒</div>
+            <p className="text-slate-500 text-sm mb-4">L'historique des analyses est réservé aux plans payants.</p>
+            <Link to="/paiement" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors">
+              Voir les plans →
+            </Link>
           </div>
         ) : analyses.length === 0 ? (
           <div className="p-12 text-center">

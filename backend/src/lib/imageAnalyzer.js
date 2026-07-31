@@ -7,17 +7,19 @@
  * Flow per image:
  *  1. Download image bytes once
  *  2. Compute a perceptual hash (local, free, instant)
- *  3. Check that hash against reported_images (our own DB, free, instant)
+ *  3. Check that hash against reported_images — exact match first, then a
+ *     fuzzy (Hamming-distance) match to catch lightly filtered/recompressed
+ *     re-uploads that an exact match would miss
  *     -> if a confirmed-fraud match is found, skip the paid Vision API call
- *  4. Otherwise, fall back to Google Vision Web Detection + metadata checks
+ *  4. Otherwise, fall back to Google Vision Web Detection (now also using
+ *     visuallySimilarImages, not just exact/partial matches) + metadata checks
  *  5. Every computed hash is returned so the caller can feed it back into
  *     the registry once a fraud verdict is confirmed (see updateImageRegistry)
  *
- * NOTE on hash accuracy: this is an average-hash (aHash), which reliably
- * catches identical or near-identical re-uploads of the same photo. It will
- * NOT catch images that were cropped, rotated, or heavily filtered — that
- * needs a Hamming-distance comparison instead of exact match, planned as a
- * later iteration.
+ * NOTE on remaining limits: the fuzzy hash match tolerates brightness/
+ * contrast/saturation-type filters and recompression, but still won't catch
+ * heavy crops or rotations reliably — that's where Vision's
+ * visuallySimilarImages (ML-based, not pixel-based) fills the gap instead.
  */
 
 const https = require('https');
@@ -133,6 +135,60 @@ async function checkImageHash(hash) {
   };
 }
 
+// ── Hamming distance between two 16-char hex hashes (64-bit) ─────
+// Counts how many bits differ. 0 = identical. A small distance (≤5 out
+// of 64 bits) still reliably indicates the same underlying photo, just
+// re-compressed or lightly filtered (brightness/contrast/saturation).
+function hammingDistance(hexA, hexB) {
+  if (!hexA || !hexB || hexA.length !== hexB.length) return Infinity;
+  let distance = 0;
+  for (let i = 0; i < hexA.length; i++) {
+    const xor = parseInt(hexA[i], 16) ^ parseInt(hexB[i], 16);
+    distance += xor.toString(2).split('').filter(b => b === '1').length;
+  }
+  return distance;
+}
+
+const HAMMING_THRESHOLD = 5; // out of 64 bits — tune if too many/few matches
+
+// ── Fuzzy check: tolerate light filters/recompression that an exact
+// hash match would miss. Only compares against hashes already known to
+// the registry (not the whole internet), so the cost stays bounded by
+// how many confirmed/reported images Seculoca has accumulated so far —
+// this is itself part of the proprietary-data moat: it gets more useful
+// as the registry grows, not more expensive per lookup in a meaningful way.
+async function checkImageHashFuzzy(hash) {
+  if (!hash) return null;
+
+  const { data } = await supabase
+    .from('reported_images')
+    .select('perceptual_hash, report_count, confirmed_scam_count, first_seen_at')
+    .neq('perceptual_hash', hash); // exact match already handled separately
+
+  if (!data || data.length === 0) return null;
+
+  let best = null;
+  let bestDistance = Infinity;
+  for (const row of data) {
+    const d = hammingDistance(hash, row.perceptual_hash);
+    if (d <= HAMMING_THRESHOLD && d < bestDistance) {
+      best = row;
+      bestDistance = d;
+    }
+  }
+
+  if (!best) return null;
+
+  return {
+    found: true,
+    reportCount: best.report_count,
+    confirmedScamCount: best.confirmed_scam_count,
+    firstSeenAt: best.first_seen_at,
+    riskLevel: best.confirmed_scam_count >= 1 ? 'danger' : 'warning',
+    detail: `Cette photo ressemble fortement (probablement retouchée ou recompressée) à une image signalée ${best.report_count} fois dans notre base propriétaire Seculoca${best.confirmed_scam_count > 0 ? `, dont ${best.confirmed_scam_count} arnaque(s) confirmée(s)` : ''}.`,
+  };
+}
+
 // ── Call Google Vision Web Detection for one image ──────────────
 async function checkImageWithVision(imageUrl, apiKey) {
   const body = JSON.stringify({
@@ -175,9 +231,10 @@ async function checkImageWithVision(imageUrl, apiKey) {
 function assessImageRisk(visionResult, imageUrl) {
   if (!visionResult) return null;
 
-  const fullMatches    = visionResult.fullMatchingImages || [];
-  const partialMatches = visionResult.partialMatchingImages || [];
-  const pages          = visionResult.pagesWithMatchingImages || [];
+  const fullMatches      = visionResult.fullMatchingImages || [];
+  const partialMatches   = visionResult.partialMatchingImages || [];
+  const similarImages    = visionResult.visuallySimilarImages || [];
+  const pages            = visionResult.pagesWithMatchingImages || [];
 
   const totalMatches = fullMatches.length + partialMatches.length;
 
@@ -207,6 +264,21 @@ function assessImageRisk(visionResult, imageUrl) {
       matchCount: totalMatches,
       foreignDomains: uniqueForeign,
       detail: `Photo trouvée en ${totalMatches} occurrence(s) sur le web — vérifiez qu'il s'agit bien d'autres annonces du même propriétaire.`,
+    };
+  }
+
+  // No exact/partial match, but Vision's own ML model found visually
+  // similar images (catches crops/filters/edits that a strict hash or
+  // pixel match would miss). Weaker signal — only "warning", never
+  // "danger" on its own, since visual similarity alone isn't proof of
+  // reuse (two different but similar-looking apartments, for instance).
+  if (similarImages.length >= 3) {
+    return {
+      imageUrl,
+      riskLevel: 'warning',
+      matchCount: similarImages.length,
+      foreignDomains: uniqueForeign,
+      detail: `${similarImages.length} image(s) visuellement très proches trouvées sur le web (possible recadrage/filtre) — à vérifier manuellement.`,
     };
   }
 
@@ -263,7 +335,8 @@ async function analyseListingImages(html, listingUrl, apiKey) {
         // download/hash failure — fall through to Vision-only if apiKey available
       }
 
-      // 3. Check our own free registry before paying for Vision
+      // 3. Check our own free registry — exact match first, then a fuzzy
+      // (Hamming-distance) match to catch lightly filtered re-uploads.
       if (hash) {
         const registryHit = await checkImageHash(hash);
         if (registryHit) {
@@ -275,6 +348,19 @@ async function analyseListingImages(html, listingUrl, apiKey) {
             foreignDomains: [],
             detail: registryHit.detail,
             source: 'registre_seculoca',
+          };
+        }
+
+        const fuzzyHit = await checkImageHashFuzzy(hash);
+        if (fuzzyHit) {
+          return {
+            imageUrl: url,
+            perceptualHash: hash,
+            riskLevel: fuzzyHit.riskLevel,
+            matchCount: fuzzyHit.reportCount,
+            foreignDomains: [],
+            detail: fuzzyHit.detail,
+            source: 'registre_seculoca_flou',
           };
         }
       }
@@ -379,5 +465,7 @@ module.exports = {
   extractImageUrls,
   computePerceptualHash,
   checkImageHash,
+  checkImageHashFuzzy,
+  hammingDistance,
   updateImageRegistry,
 };

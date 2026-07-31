@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import demoPreview from '../assets/demo-preview.png';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://determined-nourishment-production-ea9c.up.railway.app';
 
@@ -53,7 +54,7 @@ export default function Landing() {
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Inter', sans-serif; }
-        h1,h2,h3,h4 { font-family: 'Syne', sans-serif; line-height: 1.15; }
+        h1,h2,h3,h4 { font-family: 'Syne', sans-serif; line-height: 1.3; }
         .landing-nav {
           position: sticky; top: 0; z-index: 100;
           background: rgba(255,255,255,0.95); backdrop-filter: blur(8px);
@@ -114,15 +115,20 @@ export default function Landing() {
         section { padding: 80px 5%; }
         .section-inner { max-width: 1100px; margin: 0 auto; }
         .section-eyebrow { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--blue-500); font-weight: 600; margin-bottom: 12px; }
-        .section-title { font-size: clamp(1.6rem,3vw,2.2rem); font-weight: 800; color: var(--blue-900); margin-bottom: 16px; letter-spacing: -0.5px; }
+        .section-title { font-size: clamp(1.6rem,3vw,2.2rem); font-weight: 800; color: var(--blue-900); margin-bottom: 16px; letter-spacing: -0.5px; line-height: 1.3; }
         .section-sub { font-size: 1rem; color: var(--muted); max-width: 560px; line-height: 1.7; margin-bottom: 52px; }
         .how-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 32px; }
         .step-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 32px 28px; transition: box-shadow 0.2s, transform 0.2s; }
         .step-card:hover { box-shadow: 0 8px 32px rgba(30,95,212,0.1); transform: translateY(-3px); }
         .step-num { font-family: 'Syne', sans-serif; font-size: 3rem; font-weight: 800; color: var(--blue-500); line-height: 1; margin-bottom: 16px; }
         .step-icon { width: 48px; height: 48px; background: var(--blue-100); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; font-size: 1.4rem; }
-        .step-card h3 { font-size: 1.05rem; font-weight: 700; color: var(--blue-900); margin-bottom: 10px; }
+        .step-card h3 { font-size: 1.2rem; font-weight: 700; color: var(--blue-500); margin-bottom: 10px; }
         .step-card p { font-size: 0.88rem; color: var(--muted); line-height: 1.6; }
+        .demo-preview-section { background: var(--sand); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+        .demo-preview-grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 48px; align-items: center; }
+        .demo-preview-img-wrap { border-radius: 16px; overflow: hidden; box-shadow: 0 12px 40px rgba(11,31,74,0.15); border: 1px solid var(--border); }
+        .demo-preview-img-wrap img { display: block; width: 100%; height: auto; }
+       @media (max-width: 900px) { .demo-preview-grid { grid-template-columns: 1fr; } }
         .pricing-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 20px; }
         .plan-card { border: 1.5px solid var(--border); border-radius: 16px; padding: 28px 24px; background: white; position: relative; transition: box-shadow 0.2s, transform 0.2s; }
         .plan-card:hover { box-shadow: 0 8px 32px rgba(30,95,212,0.1); transform: translateY(-3px); }
@@ -201,7 +207,7 @@ export default function Landing() {
         <div className="hero-grid">
           <div>
             <div className="hero-badge">✦ Intelligence artificielle · Détection en temps réel</div>
-            <h1>Louez en toute<br/><em>confiance</em></h1>
+            <h1>Vérifiez avant<br/><em>de louer</em></h1>
             <p><strong>Seculoca</strong> analyse vos annonces de location en quelques secondes et détecte les signaux potentiels d'arnaque.</p>
             <div className="hero-cta">
               <Link to="/connexion?mode=register" className="btn btn-primary btn-large">✓ Analyser une annonce gratuitement</Link>
@@ -233,11 +239,25 @@ export default function Landing() {
           <h2 className="section-title">Trois étapes simples, rapides et pertinentes.</h2>
           <p className="section-sub">Pas besoin d'être expert. Copiez le texte de l'annonce, notre IA fait le reste.</p>
           <div className="how-grid">
-            <div className="step-card"><div className="step-num">01</div><div className="step-icon">📋</div><h3>Copiez l'annonce</h3><p>Copiez le texte de l'annonce depuis n'importe quelle plateforme — Leboncoin, SeLoger, PAP, Facebook Marketplace…</p></div>
-            <div className="step-card"><div className="step-num">02</div><div className="step-icon">🤖</div><h3>L'IA analyse</h3><p>Notre modèle examine de nombreux signaux d'alerte : prix, localisation, formulations suspectes, demandes inhabituelles.</p></div>
-            <div className="step-card"><div className="step-num">03</div><div className="step-icon">🎯</div><h3>Recevez votre score</h3><p>Un score de risque clair de 0 à 100, avec les signaux détectés expliqués en français.</p></div>
+            <div className="step-card"><div className="step-num">01</div><div className="step-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--blue-500)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1"/><line x1="9" y1="10" x2="15" y2="10"/><line x1="9" y1="14" x2="15" y2="14"/><line x1="9" y1="18" x2="12" y2="18"/></svg></div><h3>Copiez l'annonce</h3><p>Copiez le texte de l'annonce depuis n'importe quelle plateforme — Leboncoin, SeLoger, PAP, Facebook Marketplace…</p></div>
+            <div className="step-card"><div className="step-num">02</div><div className="step-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--blue-500)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><line x1="15.3" y1="15.3" x2="20" y2="20"/><path d="M8 10.5h5M10.5 8v5"/></svg></div><h3>L'IA analyse</h3><p>Notre modèle examine de nombreux signaux d'alerte : prix, localisation, formulations suspectes, demandes inhabituelles.</p></div>
+            <div className="step-card"><div className="step-num">03</div><div className="step-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--blue-500)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15a8 8 0 0 1 16 0"/><line x1="12" y1="15" x2="15.5" y2="10.5"/><circle cx="12" cy="15" r="1"/></svg></div><h3>Recevez votre score</h3><p>Un score de risque clair de 0 à 100, avec des signaux détectés et documentés.</p></div>
           </div>
         </div>      </section>
+      {/* APERÇU DU PRODUIT */}
+      <section className="demo-preview-section">
+        <div className="section-inner demo-preview-grid">
+          <div>
+            <div className="section-eyebrow">Aperçu</div>
+            <h2 className="section-title">Voyez le résultat avant de vous décider</h2>
+            <p className="section-sub" style={{marginBottom:'28px'}}>Un score de risque clair, des signaux détaillés et une recommandation concrète — exactement ce que vous recevez après chaque analyse.</p>
+            <Link to="/demo" className="btn btn-primary btn-large">Essayer la démo interactive →</Link>
+          </div>
+          <div className="demo-preview-img-wrap">
+            <img src={demoPreview} alt="Aperçu d'un rapport d'analyse Seculoca" />
+          </div>
+        </div>
+      </section>
 
       {/* PRICING */}
       <section id="tarifs">
@@ -254,8 +274,9 @@ export default function Landing() {
               <ul className="plan-features">
                 <li><span className="check">✓</span> 5 analyses</li>
                 <li><span className="check">✓</span> Score de risque global</li>
-                <li><span className="check">✓</span> 3 signaux détectés</li>
-                <li><span className="cross">✗</span> Rapport détaillé</li>
+                <li><span className="check">✓</span> Tous les signaux détectés</li>
+                <li><span className="check">✓</span> Rapport complet</li>
+                <li><span className="check">✓</span> Vérifier un paiement demandé</li>
                 <li><span className="cross">✗</span> Historique</li>
               </ul>
               <Link to="/connexion?mode=register" className="btn btn-outline" style={{width:'100%',justifyContent:'center'}}>Commencer</Link>
@@ -269,7 +290,8 @@ export default function Landing() {
                 <li><span className="check">✓</span> 20 analyses / mois</li>
                 <li><span className="check">✓</span> Score de risque global</li>
                 <li><span className="check">✓</span> Rapport complet</li>
-                <li><span className="check">✓</span> Historique 30 jours</li>
+                <li><span className="check">✓</span> Vérifier un paiement demandé</li>
+                <li><span className="check">✓</span> Historique des analyses</li>
                 <li><span className="cross">✗</span> Export PDF</li>
               </ul>
               <Link to="/connexion?mode=register" className="btn btn-outline" style={{width:'100%',justifyContent:'center'}}>Choisir</Link>
@@ -284,7 +306,8 @@ export default function Landing() {
                 <li><span className="check">✓</span> 60 analyses / mois</li>
                 <li><span className="check">✓</span> Score de risque global</li>
                 <li><span className="check">✓</span> Rapport complet</li>
-                <li><span className="check">✓</span> Historique illimité</li>
+                <li><span className="check">✓</span> Vérifier un paiement demandé</li>
+                <li><span className="check">✓</span> Historique des analyses</li>
                 <li><span className="check">✓</span> Export PDF</li>
               </ul>
               <Link to="/connexion?mode=register" className="btn btn-primary" style={{width:'100%',justifyContent:'center'}}>Choisir</Link>
@@ -298,8 +321,10 @@ export default function Landing() {
                 <li><span className="check">✓</span> Analyses illimitées</li>
                 <li><span className="check">✓</span> Score de risque global</li>
                 <li><span className="check">✓</span> Rapport complet</li>
-                <li><span className="check">✓</span> Historique illimité</li>
+                <li><span className="check">✓</span> Vérifier un paiement demandé</li>
+                <li><span className="check">✓</span> Historique des analyses</li>
                 <li><span className="check">✓</span> Export PDF</li>
+                <li><span className="check">✓</span> Clé API pour intégration</li>
                 <li><span className="check">✓</span> Support prioritaire</li>
               </ul>
               <Link to="/connexion?mode=register" className="btn btn-outline" style={{width:'100%',justifyContent:'center'}}>Choisir</Link>
