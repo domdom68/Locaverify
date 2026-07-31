@@ -1,5 +1,31 @@
 const express = require('express');
 const router = express.Router();
+const dns = require('dns').promises;
+const net = require('net');
+
+// ── Protection SSRF : bloque les adresses internes/privées ─────────
+function isPrivateIp(ip) {
+  if (net.isIPv4(ip)) {
+    const [a, b] = ip.split('.').map(Number);
+    if (a === 10 || a === 127 || a === 0) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    return false;
+  }
+  const lower = ip.toLowerCase();
+  return lower === '::1' || lower.startsWith('fe80:') || lower.startsWith('fc') || lower.startsWith('fd');
+}
+
+async function isUrlSafe(parsedUrl) {
+  if (!['http:', 'https:'].includes(parsedUrl.protocol)) return false;
+  try {
+    const { address } = await dns.lookup(parsedUrl.hostname);
+    return !isPrivateIp(address);
+  } catch {
+    return false;
+  }
+}
 
 // POST /api/scrape  — Extract listing data from URL
 router.post('/', async (req, res) => {
@@ -12,6 +38,10 @@ router.post('/', async (req, res) => {
     parsedUrl = new URL(url);
   } catch {
     return res.status(400).json({ error: 'URL invalide.' });
+  }
+
+  if (!(await isUrlSafe(parsedUrl))) {
+    return res.status(400).json({ error: 'Cette URL n\'est pas autorisée.' });
   }
 
   try {
