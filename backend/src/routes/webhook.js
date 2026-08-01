@@ -40,7 +40,7 @@ router.post('/', async (req, res) => {
         }
 
         // Log payment
-        await supabase.from('payments').insert({
+        const { error: paymentLogError } = await supabase.from('payments').insert({
           user_id: userId,
           stripe_session_id: session.id,
           amount: (session.amount_total || 0) / 100,
@@ -48,6 +48,9 @@ router.post('/', async (req, res) => {
           plan_activated: plan || null,
           status: 'completed',
         });
+        if (paymentLogError) {
+          console.error('❌ Échec du log de paiement pour', userId, ':', paymentLogError.message);
+        }
         break;
       }
 
