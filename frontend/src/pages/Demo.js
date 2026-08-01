@@ -59,7 +59,9 @@ export default function Demo() {
           localisation: data.data.localisation  || f.localisation,
         }));
       }
-    } catch {}
+    } catch (err) {
+      console.error('[Demo] Échec de la récupération automatique:', err);
+    }
     setScraping(false);
   };
 
