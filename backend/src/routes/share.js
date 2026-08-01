@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const { requireAuth, supabase } = require('../middleware/auth');
 
 // POST /api/share/:analyseId  — Generate a public share token
@@ -17,8 +18,8 @@ router.post('/:analyseId', requireAuth, async (req, res) => {
 
   if (!analyse) return res.status(404).json({ error: 'Analyse introuvable.' });
 
-  // Generate or retrieve existing share token
-  const token = Buffer.from(`${analyseId}:${Date.now()}`).toString('base64url').slice(0, 16);
+  // Generate a cryptographically random share token
+  const token = crypto.randomBytes(12).toString('base64url');
 
   const { data, error } = await supabase
     .from('shared_reports')
