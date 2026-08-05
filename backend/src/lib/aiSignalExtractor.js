@@ -26,6 +26,8 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const WEIGHTS = {
   prixEcartFort:        30, // prix > 30% sous le marché
   prixEcartModere:      15, // prix 15-30% sous le marché
+  promotionForte:        18, // rabais auto-affiché > 30% du prix habituel annoncé
+  promotionModeree:       8, // rabais auto-affiché 15-30%
   urgencePression:      15,
   paiementAvantVisite:  25,
   paiementSuspect:      15,
@@ -66,6 +68,12 @@ Renvoie UNIQUEMENT un objet JSON valide avec cette structure exacte :
     "surface_m2": <nombre ou null, surface du logement en m² si mentionnée dans le texte>,
     "ecart_pourcentage_marche_local": <nombre négatif si sous le marché, positif si au-dessus, ou null si non évaluable — ta MEILLEURE ESTIMATION, qui pourra être remplacée par une donnée officielle si disponible>,
     "explication": "<1 phrase>"
+  },
+  "promotion_affichee": {
+    "detectee": <true|false, l'annonce affiche-t-elle elle-même une réduction ou un "prix habituel" different du prix demandé (ex: "PROMO", "prix habituel X EUR", "-30%", "offre limitée")>,
+    "prix_habituel_annonce": <nombre ou null, le prix habituel/barré tel qu'affiché dans le texte, s'il existe>,
+    "ecart_pourcentage": <nombre ou null, écart entre le prix habituel affiché et le prix demandé, en pourcentage négatif>,
+    "explication": "<1 phrase, cite un extrait si pertinent>"
   },
   "urgence_pression": {
     "detectee": <true|false>,
@@ -139,6 +147,20 @@ function computeDeterministicScore(signals, benchmark = null) {
     criteria.push({ label: 'Prix vs marché local', status: 'ok', detail: prixDetail || 'Prix cohérent avec le marché local.', source: prixSource });
   } else {
     criteria.push({ label: 'Prix vs marché local', status: 'info', detail: 'Prix non évaluable avec les informations fournies (surface ou prix manquant).', source: prixSource });
+  }
+
+  // Promotion auto-affichée (indépendant de la surface/marché local)
+  const promo = signals.promotion_affichee || {};
+  if (promo.detectee && promo.ecart_pourcentage != null && promo.ecart_pourcentage <= -30) {
+    score += WEIGHTS.promotionForte;
+    criteria.push({ label: 'Promotion affichée', status: 'warning', detail: promo.explication || `Rabais important affiché (${promo.ecart_pourcentage}% sous le prix habituel annoncé).` });
+  } else if (promo.detectee && promo.ecart_pourcentage != null && promo.ecart_pourcentage <= -15) {
+    score += WEIGHTS.promotionModeree;
+    criteria.push({ label: 'Promotion affichée', status: 'warning', detail: promo.explication || `Rabais affiché (${promo.ecart_pourcentage}% sous le prix habituel annoncé).` });
+  } else if (promo.detectee) {
+    criteria.push({ label: 'Promotion affichée', status: 'info', detail: promo.explication || 'Promotion mentionnée mais écart non précisé.' });
+  } else {
+    criteria.push({ label: 'Promotion affichée', status: 'ok', detail: 'Aucune promotion ou rabais auto-affiché détecté.' });
   }
 
   // Urgence et pression
