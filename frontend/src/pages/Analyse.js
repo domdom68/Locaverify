@@ -209,8 +209,8 @@ export default function Analyse() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                  <div className="sm:col-span-2">
                       <label className="block text-sm font-medium text-slate-700 mb-1.5">Prix (€)</label>
                       <div className="flex gap-2">
                         <input type="number" value={form.prix} onChange={update('prix')} required placeholder="850"
