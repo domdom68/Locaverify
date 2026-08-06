@@ -209,8 +209,8 @@ export default function Analyse() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                  <div className="sm:col-span-2">
+                <div className="grid grid-cols-1 sm:grid-cols-6 gap-4">
+                  <div className="sm:col-span-3">
                       <label className="block text-sm font-medium text-slate-700 mb-1.5">Prix (€)</label>
                       <div className="flex gap-2">
                         <input type="number" value={form.prix} onChange={update('prix')} required placeholder="850"
@@ -223,7 +223,7 @@ export default function Analyse() {
                         </select>
                       </div>
                     </div>
-                  <div>
+                  <div className="sm:col-span-1">
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
                       Surface (m²)
                       <span className="text-slate-400 font-normal ml-1">(optionnel)</span>
@@ -231,7 +231,7 @@ export default function Analyse() {
                     <input type="number" value={form.surface} onChange={update('surface')} placeholder="37"
                       className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"/>
                   </div>
-                  <div>
+                  <div className="sm:col-span-2">
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">Ville / Localisation</label>
                     <input type="text" value={form.localisation} onChange={update('localisation')} required placeholder="Paris 15e"
                       className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"/>
