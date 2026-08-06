@@ -224,12 +224,10 @@ export default function Analyse() {
                       </div>
                     </div>
                   <div className="sm:col-span-1">
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      Surface (m²)
-                      <span className="text-slate-400 font-normal ml-1">(optionnel)</span>
-                    </label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Surface (m²)</label>
                     <input type="number" value={form.surface} onChange={update('surface')} placeholder="37"
                       className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"/>
+                    <p className="text-xs text-slate-400 mt-1">Optionnel</p>
                   </div>
                   <div className="sm:col-span-2">
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">Ville / Localisation</label>
