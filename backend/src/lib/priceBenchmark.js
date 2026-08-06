@@ -77,6 +77,10 @@ async function lookupRentBenchmark(localisation) {
       .replace(/\d+/g, '')
       .trim();
     if (!cleanedInput || cleanedInput.length < 2) return null;
+    // Pour une ville à arrondissements (Paris/Lyon/Marseille) mentionnée sans
+    // numéro précis, mieux vaut ne pas deviner un arrondissement au hasard :
+    // la comparaison de prix serait trompeuse (quartiers très hétérogènes).
+    if (ARRONDISSEMENT_CITIES.some(city => cleanedInput === city)) return null;
     query = query.ilike('LIBGEO', `%${cleanedInput}%`).limit(5);
   }
 
