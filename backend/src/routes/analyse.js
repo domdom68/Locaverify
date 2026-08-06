@@ -13,7 +13,7 @@ const DPE_LABEL = 'Cohérence adresse/surface (DPE)';
 
 // POST /api/analyse
 router.post('/', requireAuth, async (req, res) => {
-  const { url, description, prix, duree_prix, localisation, proprietaire, telephone, imageUrls } = req.body;
+  const { url, description, prix, surface, duree_prix, localisation, proprietaire, telephone, imageUrls } = req.body;
   const userId = req.user.id;
 
   const dureePrixMap = { jour: 'jour', semaine: 'semaine', mois: 'mois' };
@@ -34,7 +34,7 @@ router.post('/', requireAuth, async (req, res) => {
     const [aiResult, imageResult, communityResult, benchmarkResult] = await Promise.allSettled([
 
       // 1. GPT-4o — STEP 1 ONLY: extract factual signals, no scoring here
-      extractListingSignals({ description, prix, dureePrixLabel, localisation, proprietaire, telephone, url }),
+      extractListingSignals({ description, prix, surface, dureePrixLabel, localisation, proprietaire, telephone, url }),
 
       // 2. Image analysis (if URL provided)
       (async () => {
@@ -78,7 +78,8 @@ router.post('/', requireAuth, async (req, res) => {
     // the actual network fetch has to happen client-side (browser). Here
     // we only prepare the criterion + tell the frontend whether it needs
     // to do a follow-up check (see buildAdemeQueryUrl + /:id/dpe-verify).
-    const surfaceM2 = signals.prix?.surface_m2 || null;
+    // Priorité à la surface saisie manuellement (plus fiable), sinon celle extraite du texte par l'IA
+const surfaceM2 = (surface && parseFloat(surface) > 0) ? parseFloat(surface) : (signals.prix?.surface_m2 || null);
     let dpeCriterion;
     let dpeCheckInfo = { needed: false };
 
