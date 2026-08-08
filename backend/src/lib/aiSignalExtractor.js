@@ -33,6 +33,7 @@ const WEIGHTS = {
   paiementSuspect:      15,
   documentsAvantVisiteSensibles: 20, // CNI + revenus/relevés bancaires exigés avant visite
   documentsAvantVisiteSimple:    10, // pièce d'identité seule exigée avant visite
+  compteBancaireIncoherent:      25, // IBAN/compte étranger pour un bien loué en France
   proprietaireAbsent:   15,
   incoherenceParElement: 8, // par incohérence détectée, plafonné
   incoherenceMax:       24,
@@ -90,6 +91,11 @@ Renvoie UNIQUEMENT un objet JSON valide avec cette structure exacte :
   "documents_avant_visite": {
     "detectee": <true|false, l'annonce demande-t-elle explicitement des documents personnels/administratifs AVANT toute visite du logement (pas juste "pour la constitution du dossier" en vue de louer après visite)>,
     "documents_sensibles": <true|false, s'agit-il de documents financiers/fiscaux sensibles (avis d'imposition, relevés bancaires, bulletins de salaire) plutôt qu'une simple pièce d'identité>,
+    "explication": "<1 phrase, cite un extrait si pertinent>"
+  },
+  "compte_bancaire_incoherent": {
+    "detectee": <true|false, l'annonce mentionne-t-elle un IBAN, un compte bancaire, ou un moyen de virement situé dans un pays différent de celui du bien loué (ex: un IBAN commençant par GB, ES, DE pour un logement en France)>,
+    "pays_compte": <chaîne ou null, le pays du compte bancaire mentionné si identifiable (ex: "Royaume-Uni")>,
     "explication": "<1 phrase, cite un extrait si pertinent>"
   },
   "proprietaire": {
@@ -202,8 +208,17 @@ function computeDeterministicScore(signals, benchmark = null) {
   } else if (docsAvantVisite.detectee) {
     score += WEIGHTS.documentsAvantVisiteSimple;
     criteria.push({ label: 'Documents avant visite', status: 'warning', detail: docsAvantVisite.explication || 'Un document personnel est exigé avant toute visite du logement.' });
-  } else {
+ } else {
     criteria.push({ label: 'Documents avant visite', status: 'ok', detail: 'Aucun document personnel exigé avant la visite.' });
+  }
+
+  // Compte bancaire étranger incohérent avec la localisation du bien
+  const compteBancaire = signals.compte_bancaire_incoherent || {};
+  if (compteBancaire.detectee) {
+    score += WEIGHTS.compteBancaireIncoherent;
+    criteria.push({ label: 'Compte bancaire cohérent', status: 'danger', detail: compteBancaire.explication || `Compte bancaire situé à l'étranger (${compteBancaire.pays_compte || 'pays non précisé'}), incohérent avec un bien loué en France.` });
+  } else {
+    criteria.push({ label: 'Compte bancaire cohérent', status: 'ok', detail: 'Aucun compte bancaire étranger incohérent détecté.' });
   }
 
   // Présence du propriétaire
