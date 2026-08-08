@@ -31,6 +31,8 @@ const WEIGHTS = {
   urgencePression:      15,
   paiementAvantVisite:  25,
   paiementSuspect:      15,
+  documentsAvantVisiteSensibles: 20, // CNI + revenus/relevés bancaires exigés avant visite
+  documentsAvantVisiteSimple:    10, // pièce d'identité seule exigée avant visite
   proprietaireAbsent:   15,
   incoherenceParElement: 8, // par incohérence détectée, plafonné
   incoherenceMax:       24,
@@ -84,6 +86,11 @@ Renvoie UNIQUEMENT un objet JSON valide avec cette structure exacte :
     "demande_paiement_avant_visite": <true|false>,
     "type_suspect": <true|false, ex: virement international, cryptomonnaie, mandat cash>,
     "explication": "<1 phrase>"
+  },
+  "documents_avant_visite": {
+    "detectee": <true|false, l'annonce demande-t-elle explicitement des documents personnels/administratifs AVANT toute visite du logement (pas juste "pour la constitution du dossier" en vue de louer après visite)>,
+    "documents_sensibles": <true|false, s'agit-il de documents financiers/fiscaux sensibles (avis d'imposition, relevés bancaires, bulletins de salaire) plutôt qu'une simple pièce d'identité>,
+    "explication": "<1 phrase, cite un extrait si pertinent>"
   },
   "proprietaire": {
     "informations_absentes": <true|false>,
@@ -185,6 +192,18 @@ function computeDeterministicScore(signals, benchmark = null) {
     criteria.push({ label: 'Mode de paiement', status: 'warning', detail: paiement.explication || 'Mode de paiement inhabituel mentionné.' });
   } else {
     criteria.push({ label: 'Mode de paiement', status: 'info', detail: paiement.explication || 'Aucune information sur le mode de paiement.' });
+  }
+
+  // Documents personnels demandés avant visite
+  const docsAvantVisite = signals.documents_avant_visite || {};
+  if (docsAvantVisite.detectee && docsAvantVisite.documents_sensibles) {
+    score += WEIGHTS.documentsAvantVisiteSensibles;
+    criteria.push({ label: 'Documents avant visite', status: 'danger', detail: docsAvantVisite.explication || 'Documents financiers/fiscaux sensibles exigés avant toute visite du logement.' });
+  } else if (docsAvantVisite.detectee) {
+    score += WEIGHTS.documentsAvantVisiteSimple;
+    criteria.push({ label: 'Documents avant visite', status: 'warning', detail: docsAvantVisite.explication || 'Un document personnel est exigé avant toute visite du logement.' });
+  } else {
+    criteria.push({ label: 'Documents avant visite', status: 'ok', detail: 'Aucun document personnel exigé avant la visite.' });
   }
 
   // Présence du propriétaire
