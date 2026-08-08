@@ -34,6 +34,7 @@ const WEIGHTS = {
   documentsAvantVisiteSensibles: 20, // CNI + revenus/relevés bancaires exigés avant visite
   documentsAvantVisiteSimple:    10, // pièce d'identité seule exigée avant visite
   compteBancaireIncoherent:      25, // IBAN/compte étranger pour un bien loué en France
+  remiseClesADistance:           20, // clés envoyées par courrier/poste, aucune rencontre en personne
   proprietaireAbsent:   15,
   incoherenceParElement: 8, // par incohérence détectée, plafonné
   incoherenceMax:       24,
@@ -96,6 +97,10 @@ Renvoie UNIQUEMENT un objet JSON valide avec cette structure exacte :
   "compte_bancaire_incoherent": {
     "detectee": <true|false, l'annonce mentionne-t-elle un IBAN, un compte bancaire, ou un moyen de virement situé dans un pays différent de celui du bien loué (ex: un IBAN commençant par GB, ES, DE pour un logement en France)>,
     "pays_compte": <chaîne ou null, le pays du compte bancaire mentionné si identifiable (ex: "Royaume-Uni")>,
+    "explication": "<1 phrase, cite un extrait si pertinent>"
+  },
+  "remise_cles_a_distance": {
+    "detectee": <true|false, le bailleur propose-t-il d'envoyer les clés par courrier/poste, boîte à clés, ou tout autre moyen à distance, SANS jamais rencontrer le locataire en personne pour un état des lieux>,
     "explication": "<1 phrase, cite un extrait si pertinent>"
   },
   "proprietaire": {
@@ -217,8 +222,17 @@ function computeDeterministicScore(signals, benchmark = null) {
   if (compteBancaire.detectee) {
     score += WEIGHTS.compteBancaireIncoherent;
     criteria.push({ label: 'Compte bancaire cohérent', status: 'danger', detail: compteBancaire.explication || `Compte bancaire situé à l'étranger (${compteBancaire.pays_compte || 'pays non précisé'}), incohérent avec un bien loué en France.` });
-  } else {
+ } else {
     criteria.push({ label: 'Compte bancaire cohérent', status: 'ok', detail: 'Aucun compte bancaire étranger incohérent détecté.' });
+  }
+
+  // Remise des clés à distance (sans rencontre physique / état des lieux)
+  const remiseCles = signals.remise_cles_a_distance || {};
+  if (remiseCles.detectee) {
+    score += WEIGHTS.remiseClesADistance;
+    criteria.push({ label: 'Remise des clés', status: 'danger', detail: remiseCles.explication || 'Les clés sont envoyées à distance, sans rencontre en personne ni état des lieux — obligation légale contournée.' });
+  } else {
+    criteria.push({ label: 'Remise des clés', status: 'ok', detail: 'Aucune remise de clés à distance détectée.' });
   }
 
   // Présence du propriétaire
