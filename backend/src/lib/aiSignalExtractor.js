@@ -146,8 +146,11 @@ function computeDeterministicScore(signals, benchmark = null) {
     criteria.push({ label: 'Prix vs marché local', status: 'warning', detail: prixDetail || `Prix sous le marché local (${ecart}%).`, source: prixSource });
   } else if (ecart != null) {
     criteria.push({ label: 'Prix vs marché local', status: 'ok', detail: prixDetail || 'Prix cohérent avec le marché local.', source: prixSource });
-  } else {
-    criteria.push({ label: 'Prix vs marché local', status: 'info', detail: 'Prix non évaluable avec les informations fournies (surface ou prix manquant).', source: prixSource });
+ } else {
+    const prixInfoDetail = benchmark?.ambiguousArrondissement
+      ? `Précisez l'arrondissement de ${benchmark.city} dans le champ Ville (ex. "${benchmark.city} 15e") pour comparer ce prix au marché local.`
+      : 'Prix non évaluable avec les informations fournies (surface ou prix manquant).';
+    criteria.push({ label: 'Prix vs marché local', status: 'info', detail: prixInfoDetail, source: prixSource });
   }
 
   // Promotion auto-affichée (indépendant de la surface/marché local)
