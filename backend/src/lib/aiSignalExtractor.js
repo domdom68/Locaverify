@@ -115,12 +115,12 @@ Renvoie UNIQUEMENT un objet JSON valide avec cette structure exacte :
     "mediocre": <true|false, fautes nombreuses, texte générique ou copié-collé>,
     "explication": "<1 phrase>"
   },
-  "comportement_contact": {
-    "donnee_disponible": <true|false>,
-    "refus_appel_vocal": <true|false|null>,
-    "demande_messagerie_externe": <true|false|null>,
-    "numero_etranger_incoherent": <true|false|null>,
-    "explication": "<1 phrase>"
+ "comportement_contact": {
+    "donnee_disponible": <true|false, VRAI dès que le texte décrit un moyen ou un comportement de contact (numéro, app de messagerie type WhatsApp/Messenger/Telegram, email, refus d'appel) — même sans numéro de téléphone complet renseigné ailleurs>,
+    "refus_appel_vocal": <true|false|null, l'annonce refuse-t-elle explicitement les appels téléphoniques>,
+    "demande_messagerie_externe": <true|false|null, le texte demande-t-il de contacter via une messagerie tierce (WhatsApp, Messenger, Telegram, SMS uniquement) plutôt que par un appel téléphonique classique>,
+    "numero_etranger_incoherent": <true|false|null, un numéro de téléphone étranger est-il mentionné pour un bien situé en France>,
+    "explication": "<1 phrase, cite un extrait si pertinent>"
   },
   "resume_global": "<2-3 phrases décrivant objectivement l'annonce, sans jugement de fraude>"
 }
