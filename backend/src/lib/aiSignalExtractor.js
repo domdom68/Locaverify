@@ -290,14 +290,16 @@ function computeDeterministicScore(signals, benchmark = null) {
 }
 
 // ── Deterministic recommendation text, by score tier ──────────────
+const CONSEIL_PHISHING_PAIEMENT = ' Ne cliquez jamais sur un lien de paiement reçu par SMS ou message privé, même s\'il semble provenir d\'une application connue (Wero, PayPal, etc.) — ouvrez toujours l\'application officielle directement pour vérifier.';
+
 function buildRecommendation(score) {
   if (score >= 70) {
-    return 'Risque élevé : nous recommandons fortement de ne pas donner suite sans vérification approfondie (visite en personne, vérification d\'identité du propriétaire) et de ne jamais effectuer de paiement avant la visite.';
+    return 'Risque élevé : nous recommandons fortement de ne pas donner suite sans vérification approfondie (visite en personne, vérification d\'identité du propriétaire) et de ne jamais effectuer de paiement avant la visite.' + CONSEIL_PHISHING_PAIEMENT;
   }
   if (score >= 40) {
-    return 'Risque modéré : procédez avec prudence, vérifiez chacun des points signalés avant tout engagement, et privilégiez une rencontre en personne.';
+    return 'Risque modéré : procédez avec prudence, vérifiez chacun des points signalés avant tout engagement, et privilégiez une rencontre en personne.' + CONSEIL_PHISHING_PAIEMENT;
   }
-  return 'Risque faible : les signaux collectés ne montrent pas d\'alerte majeure, mais restez vigilant comme pour toute transaction en ligne.';
+  return 'Risque faible : les signaux collectés ne montrent pas d\'alerte majeure, mais restez vigilant comme pour toute transaction en ligne.' + CONSEIL_PHISHING_PAIEMENT;
 }
 
 module.exports = { extractListingSignals, computeDeterministicScore, buildRecommendation, WEIGHTS };
