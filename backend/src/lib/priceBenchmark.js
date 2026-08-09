@@ -63,15 +63,15 @@ async function lookupRentBenchmark(localisation) {
   if (!localisation) return null;
 
   const arrondissement = parseArrondissement(localisation);
-
-  let query = supabase
-    .from('rent_benchmarks')
-    .select('LIBGEO, loyer_m2, r2_adj_num, nbobs_com')
-    .not('loyer_m2', 'is', null);
+  let data, error;
 
   if (arrondissement) {
     const targetLibgeo = `${capitalise(arrondissement.city)} ${arrondissement.number}e Arrondissement`;
-    query = query.ilike('LIBGEO', targetLibgeo);
+    ({ data, error } = await supabase
+      .from('rent_benchmarks')
+      .select('LIBGEO, loyer_m2, r2_adj_num, nbobs_com')
+      .not('loyer_m2', 'is', null)
+      .ilike('LIBGEO', targetLibgeo));
   } else {
     const cleanedInput = normalise(localisation)
       .replace(/\d+/g, '')
@@ -83,10 +83,36 @@ async function lookupRentBenchmark(localisation) {
     if (ARRONDISSEMENT_CITIES.some(city => cleanedInput === city)) {
       return { ambiguousArrondissement: true, city: capitalise(cleanedInput) };
     }
-    query = query.ilike('LIBGEO', `%${cleanedInput}%`).limit(5);
+
+    // 1. Essaie d'abord une correspondance EXACTE du nom de commune —
+    //    évite qu'une recherche floue confonde "Rennes" avec "Rivarennes"
+    //    ou "Marennes" (qui contiennent aussi la sous-chaîne "rennes").
+    const exact = await supabase
+      .from('rent_benchmarks')
+      .select('LIBGEO, loyer_m2, r2_adj_num, nbobs_com')
+      .not('loyer_m2', 'is', null)
+      .ilike('LIBGEO', cleanedInput);
+
+    if (exact.data && exact.data.length > 0) {
+      data = exact.data;
+      error = exact.error;
+    } else {
+      // 2. Repli sur une recherche floue, triée par nombre d'observations
+      //    AVANT de limiter à 5 résultats — sinon la vraie ville peut être
+      //    ignorée si elle n'est pas dans les 5 premières lignes renvoyées
+      //    par la base dans un ordre arbitraire.
+      const fuzzy = await supabase
+        .from('rent_benchmarks')
+        .select('LIBGEO, loyer_m2, r2_adj_num, nbobs_com')
+        .not('loyer_m2', 'is', null)
+        .ilike('LIBGEO', `%${cleanedInput}%`)
+        .order('nbobs_com', { ascending: false })
+        .limit(5);
+      data = fuzzy.data;
+      error = fuzzy.error;
+    }
   }
 
-  const { data, error } = await query;
   if (error || !data || data.length === 0) return null;
 
   // If multiple fuzzy matches, prefer the one with the most observations
