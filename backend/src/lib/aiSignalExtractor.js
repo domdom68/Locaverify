@@ -44,6 +44,18 @@ const WEIGHTS = {
   contactNumeroEtranger: 15,
 };
 
+// Interpolation linéaire entre deux seuils, pour éviter les effets de
+// palier (ex: -29% et -31% ne doivent pas donner un score du simple au
+// double). En dehors de [seuilModere, seuilFort], comportement inchangé :
+// 0 avant seuilModere, plafonné à poidsFort au-delà de seuilFort.
+function poidsGradue(ecart, seuilModere, seuilFort, poidsModere, poidsFort) {
+  const e = Math.abs(ecart);
+  if (e < seuilModere) return 0;
+  if (e >= seuilFort) return poidsFort;
+  const t = (e - seuilModere) / (seuilFort - seuilModere);
+  return Math.round(poidsModere + t * (poidsFort - poidsModere));
+}
+
 // ── Step 1: extract factual signals only ──────────────────────────
 async function extractListingSignals({ description, prix, surface, dureePrixLabel, localisation, proprietaire, telephone, url }) {
   const completion = await openai.chat.completions.create({
@@ -156,15 +168,18 @@ function computeDeterministicScore(signals, benchmark = null) {
     prixDetail = `Loyer annoncé : ${loyerM2Annonce.toFixed(1)} €/m² — référence ANIL pour ${benchmark.matchedLibgeo} : ${benchmark.loyerM2.toFixed(1)} €/m² (${ecart > 0 ? '+' : ''}${ecart}%).` + (benchmark.note ? ` ${benchmark.note}` : '');
   }
 
-  if (ecart != null && ecart <= -30) {
-    score += WEIGHTS.prixEcartFort;
-    criteria.push({ label: 'Prix vs marché local', status: 'danger', detail: prixDetail || `Prix anormalement bas (${ecart}% sous le marché local).`, source: prixSource });
-  } else if (ecart != null && ecart <= -15) {
-    score += WEIGHTS.prixEcartModere;
-    criteria.push({ label: 'Prix vs marché local', status: 'warning', detail: prixDetail || `Prix sous le marché local (${ecart}%).`, source: prixSource });
-  } else if (ecart != null) {
-    criteria.push({ label: 'Prix vs marché local', status: 'ok', detail: prixDetail || 'Prix cohérent avec le marché local.', source: prixSource });
- } else {
+  if (ecart != null) {
+    const pts = poidsGradue(ecart, 15, 30, WEIGHTS.prixEcartModere, WEIGHTS.prixEcartFort);
+    if (pts >= WEIGHTS.prixEcartFort) {
+      score += pts;
+      criteria.push({ label: 'Prix vs marché local', status: 'danger', detail: prixDetail || `Prix anormalement bas (${ecart}% sous le marché local).`, source: prixSource });
+    } else if (pts > 0) {
+      score += pts;
+      criteria.push({ label: 'Prix vs marché local', status: 'warning', detail: prixDetail || `Prix sous le marché local (${ecart}%).`, source: prixSource });
+    } else {
+      criteria.push({ label: 'Prix vs marché local', status: 'ok', detail: prixDetail || 'Prix cohérent avec le marché local.', source: prixSource });
+    }
+  } else {
     const prixInfoDetail = benchmark?.ambiguousArrondissement
       ? `Précisez l'arrondissement de ${benchmark.city} dans le champ Ville (ex. "${benchmark.city} 15e") pour comparer ce prix au marché local.`
       : 'Prix non évaluable avec les informations fournies (surface ou prix manquant).';
@@ -173,12 +188,10 @@ function computeDeterministicScore(signals, benchmark = null) {
 
   // Promotion auto-affichée (indépendant de la surface/marché local)
   const promo = signals.promotion_affichee || {};
-  if (promo.detectee && promo.ecart_pourcentage != null && promo.ecart_pourcentage <= -30) {
-    score += WEIGHTS.promotionForte;
-    criteria.push({ label: 'Promotion affichée', status: 'warning', detail: promo.explication || `Rabais important affiché (${promo.ecart_pourcentage}% sous le prix habituel annoncé).` });
-  } else if (promo.detectee && promo.ecart_pourcentage != null && promo.ecart_pourcentage <= -15) {
-    score += WEIGHTS.promotionModeree;
-    criteria.push({ label: 'Promotion affichée', status: 'warning', detail: promo.explication || `Rabais affiché (${promo.ecart_pourcentage}% sous le prix habituel annoncé).` });
+  if (promo.detectee && promo.ecart_pourcentage != null) {
+    const pts = poidsGradue(promo.ecart_pourcentage, 15, 30, WEIGHTS.promotionModeree, WEIGHTS.promotionForte);
+    score += pts;
+    criteria.push({ label: 'Promotion affichée', status: pts > 0 ? 'warning' : 'info', detail: promo.explication || `Rabais affiché (${promo.ecart_pourcentage}% sous le prix habituel annoncé).` });
   } else if (promo.detectee) {
     criteria.push({ label: 'Promotion affichée', status: 'info', detail: promo.explication || 'Promotion mentionnée mais écart non précisé.' });
   } else {
