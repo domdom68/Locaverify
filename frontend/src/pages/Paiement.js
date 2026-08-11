@@ -15,6 +15,15 @@ const FREE_PACK = {
   cta: 'Déjà activé ✓', ctaDisabled: true,
 };
 
+const PACK_VACANCES = {
+  id: 'pack_vacances', name: 'Pack Vacances', price: '6,99 €',
+  badge: 'Sans engagement', badgeColor: 'bg-amber-100 text-amber-700',
+  highlight: false, isSubscription: false,
+  description: 'Pour une recherche ponctuelle (vacances d\'été, ski...)',
+  features: ['10 analyses', 'Valable 60 jours', 'Rapport complet', 'Vérifier un paiement demandé', 'Aucun compte requis pour acheter'],
+  cta: 'Acheter — 6,99 €',
+};
+
 const PRODUCTS = [
   {
     id: 'essentiel', name: 'Essentiel', price: '9,99 €',
@@ -113,9 +122,11 @@ export default function Paiement() {
     setLoadingProduct(productId);
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      const headers = { 'Content-Type': 'application/json' };
+      if (session) headers.Authorization = `Bearer ${session.access_token}`;
       const res = await fetch(`${API}/api/payment/create-checkout`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        headers,
         body: JSON.stringify({ productId }),
       });
       const data = await res.json();
@@ -150,6 +161,46 @@ export default function Paiement() {
             : null}
         </span>
         <span className="ml-auto flex-shrink-0 px-3 py-1 rounded-full bg-green-200 text-green-800 text-xs font-semibold">Déjà activé ✓</span>
+      </div>
+
+      {/* Pack Vacances — achat ponctuel, sans compte requis */}
+      <div className="bg-white rounded-2xl border-2 border-amber-200 p-6 mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-5">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-2">
+            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${PACK_VACANCES.badgeColor}`}>
+              {PACK_VACANCES.badge}
+            </span>
+          </div>
+          <h2 className="font-serif text-xl text-slate-900 mb-1" style={{ fontFamily: "'DM Serif Display', serif" }}>
+            {PACK_VACANCES.name} — {PACK_VACANCES.price}
+          </h2>
+          <p className="text-sm text-slate-500 mb-3">{PACK_VACANCES.description}</p>
+          <ul className="flex flex-wrap gap-x-5 gap-y-1.5">
+            {PACK_VACANCES.features.map((f) => (
+              <li key={f} className="flex items-center gap-1.5 text-sm text-slate-600">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-amber-500 flex-shrink-0">
+                  <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.5"/>
+                  <path d="M4.5 7L6.5 9L9.5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                {f}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <button
+          onClick={() => handleCheckout(PACK_VACANCES.id)}
+          disabled={loadingProduct !== null}
+          className="w-full sm:w-auto flex-shrink-0 px-6 py-3 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60 bg-amber-500 text-white hover:bg-amber-600">
+          {loadingProduct === PACK_VACANCES.id
+            ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>
+            : <>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <rect x="1" y="4" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M1 8H15" stroke="currentColor" strokeWidth="1.5"/>
+              </svg>
+              {PACK_VACANCES.cta}
+            </>}
+        </button>
       </div>
 
       {/* Pricing grid */}
