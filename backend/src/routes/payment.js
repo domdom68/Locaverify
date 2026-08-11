@@ -1,12 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const Stripe = require('stripe');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, optionalAuth } = require('../middleware/auth');
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // Product catalog — one-time packs + annual subscriptions
 const PRODUCTS = {
+  pack_vacances: {
+    id: 'pack_vacances',
+    type: 'payment',
+    name: 'Pack Vacances',
+    priceId: process.env.STRIPE_PRICE_PACK_VACANCES,
+    credits: 10,
+    isSubscription: false,
+    plan: null,
+  },
   essentiel: {
     id: 'essentiel',
     type: 'subscription',
@@ -37,12 +46,19 @@ const PRODUCTS = {
 };
 
 // POST /api/payment/create-checkout
-router.post('/create-checkout', requireAuth, async (req, res) => {
+// optionalAuth : les abonnements exigent un compte connecté, mais les packs
+// à l'unité (ex: Pack Vacances) peuvent être achetés sans compte préalable —
+// le compte est créé automatiquement après paiement (voir webhook.js).
+router.post('/create-checkout', optionalAuth, async (req, res) => {
   const { productId } = req.body;
   const product = PRODUCTS[productId];
 
   if (!product) return res.status(400).json({ error: 'Produit invalide.' });
   if (!product.priceId) return res.status(500).json({ error: `Price ID manquant pour ${productId}.` });
+
+  if (product.isSubscription && !req.user) {
+    return res.status(401).json({ error: 'Connectez-vous pour souscrire à un abonnement.' });
+  }
 
   try {
     const sessionConfig = {
@@ -53,15 +69,21 @@ router.post('/create-checkout', requireAuth, async (req, res) => {
       cancel_url: `${process.env.FRONTEND_URL}/paiement`,
       allow_promotion_codes: true,
       metadata: {
-        userId: req.user.id,
+        userId: req.user ? req.user.id : '',
         productId,
         credits: String(product.credits),
         plan: product.plan || '',
         isSubscription: String(product.isSubscription),
+        guestCheckout: String(!req.user),
       },
-      customer_email: req.user.email,
       locale: 'fr',
     };
+
+    // Utilisateur connecté : email pré-rempli. Invité : Stripe Checkout
+    // demande lui-même l'email sur la page de paiement.
+    if (req.user) {
+      sessionConfig.customer_email = req.user.email;
+    }
 
     // For subscriptions, allow future updates
     if (product.isSubscription) {
