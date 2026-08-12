@@ -6,7 +6,7 @@ export default function PaymentSuccess() {
   const { refreshProfile } = useAuth();
 
   const [searchParams] = (require('react-router-dom').useSearchParams)();
-  const isSubscription = searchParams.get('session_id')?.length > 0;
+  const isSubscription = searchParams.get('type') === 'subscription';
 
   useEffect(() => {
     // Refresh profile to get updated plan/credits after payment

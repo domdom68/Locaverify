@@ -65,7 +65,7 @@ router.post('/create-checkout', optionalAuth, async (req, res) => {
       payment_method_types: ['card'],
       line_items: [{ price: product.priceId, quantity: 1 }],
       mode: product.type,
-      success_url: `${process.env.FRONTEND_URL}/paiement/succes?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${process.env.FRONTEND_URL}/paiement/succes?session_id={CHECKOUT_SESSION_ID}&type=${product.isSubscription ? 'subscription' : 'pack'}`,
       cancel_url: `${process.env.FRONTEND_URL}/paiement`,
       allow_promotion_codes: true,
       metadata: {
