@@ -265,6 +265,23 @@ export default function Landing() {
           <div className="section-eyebrow">Tarifs</div>
           <h2 className="section-title">Simple, transparent, sans engagement</h2>
           <p className="section-sub">Commencez gratuitement. Passez au niveau supérieur si vous en avez besoin.</p>
+
+          {/* Pack Vacances — achat ponctuel, pas d'abonnement, pas de compte requis */}
+          <div className="plan-card" style={{borderColor:'#fcd34d', marginBottom:'32px', display:'flex', flexWrap:'wrap', alignItems:'center', gap:'20px', textAlign:'left'}}>
+            <div style={{flex:'1 1 320px'}}>
+              <span style={{display:'inline-block', background:'#fef3c7', color:'#b45309', fontSize:'0.72rem', fontWeight:700, padding:'4px 12px', borderRadius:'100px', marginBottom:'10px'}}>Sans engagement</span>
+              <div className="plan-name" style={{marginBottom:'2px'}}>Pack Vacances — 6,99 €</div>
+              <p style={{margin:'4px 0 10px', color:'var(--text-muted, #64748b)', fontSize:'0.92rem'}}>Pour une recherche ponctuelle (vacances d'été, ski...)</p>
+              <ul className="plan-features" style={{display:'flex', flexWrap:'wrap', gap:'4px 20px', border:'none', padding:0, margin:0}}>
+                <li><span className="check">✓</span> 10 analyses</li>
+                <li><span className="check">✓</span> Valable 60 jours</li>
+                <li><span className="check">✓</span> Rapport complet</li>
+                <li><span className="check">✓</span> Aucun compte requis pour acheter</li>
+              </ul>
+            </div>
+            <Link to="/paiement" className="btn btn-primary" style={{flexShrink:0, background:'#f59e0b'}}>Acheter — 6,99 €</Link>
+          </div>
+
           <div className="pricing-grid">
             <div className="plan-card">
               <div className="plan-name">Découverte</div>
