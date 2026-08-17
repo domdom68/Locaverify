@@ -29,11 +29,17 @@ describe('computeDeterministicScore', () => {
     expect(critere.status).toBe('danger');
   });
 
-  test('un prix modérément bas (-15 à -30%) ajoute le poids modéré, pas le poids fort', () => {
+  test('un prix modérément bas (-15 à -30%) ajoute un poids gradué entre modéré et fort', () => {
     const signals = signalsPropres();
     signals.prix.ecart_pourcentage_marche_local = -20;
     const result = computeDeterministicScore(signals);
-    expect(result.score).toBe(WEIGHTS.prixEcartModere);
+    // Avec l'interpolation linéaire (poidsGradue), -20% se situe entre les
+    // seuils -15% et -30% : le score doit être strictement entre le poids
+    // modéré et le poids fort, jamais égal à l'un ou l'autre.
+    expect(result.score).toBeGreaterThan(WEIGHTS.prixEcartModere);
+    expect(result.score).toBeLessThan(WEIGHTS.prixEcartFort);
+    const critere = result.criteria.find(c => c.label === 'Prix vs marché local');
+    expect(critere.status).toBe('warning');
   });
 
   test('paiement demandé avant visite est le signal le plus lourd sur ce critère', () => {
