@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import Layout from './components/Layout';
 import Landing from './pages/Landing';
@@ -21,6 +21,18 @@ import Confidentialite from './pages/Confidentialite';
 import CGU from './pages/CGU';
 import './index.css';
 
+// React Router ne remet pas le scroll en haut de page lors d'une
+// navigation côté client (contrairement à un rechargement classique) :
+// sans ça, changer de page peut laisser l'utilisateur au milieu de la
+// nouvelle page s'il avait scrollé sur la précédente.
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
+
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div>;
@@ -36,6 +48,7 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <ScrollToTop />
         <Routes>
           {/* Public */}
           <Route path="/" element={<Landing />} />
