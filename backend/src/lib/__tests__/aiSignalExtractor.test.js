@@ -42,6 +42,15 @@ describe('computeDeterministicScore', () => {
     expect(critere.status).toBe('warning');
   });
 
+  test('un prix AU-DESSUS du marché n\'ajoute aucun point, même très au-dessus (régression trouvée sur les cas 10 et 16 du tri des 25 cas : Math.abs(ecart) dans poidsGradue faisait à tort remonter "Prix anormalement bas" pour des annonces plus chères que la référence)', () => {
+    const signals = signalsPropres();
+    signals.prix.ecart_pourcentage_marche_local = 78; // ex. cas #10 : +78% au-dessus du marché ANIL
+    const result = computeDeterministicScore(signals);
+    expect(result.score).toBe(0);
+    const critere = result.criteria.find(c => c.label === 'Prix vs marché local');
+    expect(critere.status).toBe('ok');
+  });
+
   test('paiement demandé avant visite est le signal le plus lourd sur ce critère', () => {
     const signals = signalsPropres();
     signals.mode_paiement.demande_paiement_avant_visite = true;

@@ -48,7 +48,16 @@ const WEIGHTS = {
 // palier (ex: -29% et -31% ne doivent pas donner un score du simple au
 // double). En dehors de [seuilModere, seuilFort], comportement inchangé :
 // 0 avant seuilModere, plafonné à poidsFort au-delà de seuilFort.
+//
+// Seul un écart NÉGATIF (prix ou promo EN DESSOUS de la référence) est un
+// signal de fraude potentiel — un logement plus cher que le marché local
+// n'est pas suspect en soi. Un ecart positif retourne donc toujours 0 ;
+// sans ce garde-fou, Math.abs(ecart) faisait à tort remonter en "danger"
+// des annonces simplement plus chères que la référence (régression
+// découverte sur les cas 10 et 16 du tri des 25 cas de fraude, où un
+// écart de +78% / +96% déclenchait "Prix anormalement bas").
 function poidsGradue(ecart, seuilModere, seuilFort, poidsModere, poidsFort) {
+  if (ecart >= 0) return 0;
   const e = Math.abs(ecart);
   if (e < seuilModere) return 0;
   if (e >= seuilFort) return poidsFort;
