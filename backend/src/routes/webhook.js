@@ -23,6 +23,7 @@ async function findOrCreateGuestAccount(email) {
 
   const existing = listData?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase());
   let userId;
+  let isNewAccount = false;
 
   if (existing) {
     userId = existing.id;
@@ -32,6 +33,7 @@ async function findOrCreateGuestAccount(email) {
     });
     if (inviteError) throw inviteError;
     userId = inviteData.user.id;
+    isNewAccount = true;
   }
 
   // Crée la ligne de profil si elle n'existe pas déjà (selon qu'un
@@ -39,6 +41,14 @@ async function findOrCreateGuestAccount(email) {
   const { data: existingProfile } = await supabase.from('profiles').select('id').eq('id', userId).single();
   if (!existingProfile) {
     await supabase.from('profiles').insert({ id: userId, email, plan: 'pack', credits: 0 });
+  } else if (isNewAccount) {
+    // Le trigger public.handle_new_user() (côté Supabase, hors repo) a
+    // déjà créé la ligne avec les 5 crédits de bienvenue standard —
+    // prévus pour une inscription classique. Ce compte-ci n'existe que
+    // comme effet de bord d'un achat en invité : on neutralise ce
+    // cadeau pour que le client reçoive exactement les crédits payés
+    // (ajoutés juste après par addCredits), ni plus ni moins.
+    await supabase.from('profiles').update({ plan: 'pack', credits: 0 }).eq('id', userId);
   }
 
   return userId;
