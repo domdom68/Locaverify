@@ -23,7 +23,12 @@
  */
 
 const https = require('https');
-const Jimp = require('jimp');
+// Jimp v1 exporte la classe sous une propriété nommée, plus en export par
+// défaut — `const Jimp = require('jimp')` récupérait l'objet du module
+// entier (pas la classe), donc Jimp.read était toujours undefined
+// ("Jimp.read is not a function", trouvé en instrumentant la vérification
+// photo pour le cas 5 du tri des 25 cas).
+const { Jimp } = require('jimp');
 const { supabase } = require('../middleware/auth');
 
 const GOOGLE_VISION_ENDPOINT =
@@ -96,7 +101,9 @@ function downloadImageBuffer(imageUrl) {
 // Returns a 16-char hex string (64-bit hash from an 8x8 greyscale grid).
 async function computePerceptualHash(buffer) {
   const image = await Jimp.read(buffer);
-  image.resize(8, 8).greyscale();
+  // Jimp v1 attend un objet { w, h } — les deux arguments positionnels de
+  // l'ancienne API (Jimp v0) lèvent maintenant une erreur de validation.
+  image.resize({ w: 8, h: 8 }).greyscale();
 
   const pixels = [];
   image.scan(0, 0, 8, 8, function (x, y, idx) {
