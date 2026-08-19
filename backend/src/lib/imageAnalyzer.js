@@ -216,8 +216,24 @@ async function checkImageWithVision(imageUrl, apiKey) {
       res.on('end', () => {
         try {
           const parsed = JSON.parse(data);
+          // Google renvoie un HTTP 200 même sur une erreur applicative (clé
+          // invalide, quota, facturation Vision non activée, etc.) — le
+          // vrai statut est dans le corps JSON, pas le code HTTP. Sans ce
+          // log, ces erreurs disparaissaient silencieusement en `null`,
+          // rendant "Vérification des photos" indiscernable d'un simple
+          // "aucune copie trouvée" (découvert : 0/128 analyses n'ont jamais
+          // renvoyé un résultat positif, alors même que la clé est bien
+          // configurée sur Railway).
+          const topLevelError = parsed.error;
+          const perImageError = parsed.responses?.[0]?.error;
+          if (topLevelError || perImageError) {
+            console.error(`🖼️ [images] ❌ Google Vision a renvoyé une erreur (HTTP ${res.statusCode}) pour ${imageUrl} :`, JSON.stringify(topLevelError || perImageError));
+          }
           resolve(parsed.responses?.[0]?.webDetection || null);
-        } catch { resolve(null); }
+        } catch (err) {
+          console.error(`🖼️ [images] ❌ Réponse Vision illisible (HTTP ${res.statusCode}) pour ${imageUrl} : ${err.message} — corps brut : ${data.slice(0, 300)}`);
+          resolve(null);
+        }
       });
     });
     req.on('error', reject);
@@ -310,6 +326,7 @@ function checkImageMetadata(imageUrl) {
 // ── Main export: analyse all images from a listing ───────────────
 async function analyseListingImages(html, listingUrl, apiKey) {
   const imageUrls = extractImageUrls(html, listingUrl || 'https://example.com');
+  console.log(`🖼️ [images] ${imageUrls.length} URL(s) extraite(s) de ${listingUrl}:`, imageUrls);
 
   if (imageUrls.length === 0) {
     return {
@@ -318,6 +335,10 @@ async function analyseListingImages(html, listingUrl, apiKey) {
       results: [],
       summary: { dangerCount: 0, warningCount: 0, totalChecked: 0 },
     };
+  }
+
+  if (!apiKey) {
+    console.warn('🖼️ [images] ⚠️ GOOGLE_VISION_API_KEY absente — la vérification Vision sera sautée pour toutes les images.');
   }
 
   const results = await Promise.allSettled(
@@ -331,8 +352,9 @@ async function analyseListingImages(html, listingUrl, apiKey) {
       try {
         const buffer = await downloadImageBuffer(url);
         hash = await computePerceptualHash(buffer);
-      } catch {
+      } catch (err) {
         // download/hash failure — fall through to Vision-only if apiKey available
+        console.warn(`🖼️ [images] Téléchargement/hash échoué pour ${url} : ${err.message}`);
       }
 
       // 3. Check our own free registry — exact match first, then a fuzzy
@@ -374,9 +396,15 @@ async function analyseListingImages(html, listingUrl, apiKey) {
 
       try {
         const vision = await checkImageWithVision(url, apiKey);
+        if (!vision) {
+          console.warn(`🖼️ [images] Vision n'a renvoyé aucun webDetection pour ${url} (réponse vide ou inattendue).`);
+        } else {
+          console.log(`🖼️ [images] Vision OK pour ${url} — fullMatches:${(vision.fullMatchingImages || []).length} partialMatches:${(vision.partialMatchingImages || []).length} pages:${(vision.pagesWithMatchingImages || []).length}`);
+        }
         const assessed = assessImageRisk(vision, url);
         return assessed ? { ...assessed, perceptualHash: hash, source: 'google_vision' } : null;
-      } catch {
+      } catch (err) {
+        console.error(`🖼️ [images] ❌ Appel Vision échoué pour ${url} : ${err.message}`);
         return null;
       }
     })
@@ -385,6 +413,8 @@ async function analyseListingImages(html, listingUrl, apiKey) {
   const valid = results
     .filter(r => r.status === 'fulfilled' && r.value)
     .map(r => r.value);
+
+  console.log(`🖼️ [images] Résumé : ${valid.length}/${imageUrls.length} image(s) vérifiée(s) avec succès.`);
 
   const dangerCount  = valid.filter(r => r.riskLevel === 'danger').length;
   const warningCount = valid.filter(r => r.riskLevel === 'warning').length;
