@@ -314,11 +314,21 @@ function computeDeterministicScore(signals, benchmark = null) {
 // ── Deterministic recommendation text, by score tier ──────────────
 const CONSEIL_PHISHING_PAIEMENT = ' Ne cliquez jamais sur un lien de paiement reçu par SMS ou message privé, même s\'il semble provenir d\'une application connue (Wero, PayPal, etc.) — ouvrez toujours l\'application officielle directement pour vérifier.';
 
-function buildRecommendation(score) {
+// `criteria` (optionnel) : liste complète des critères (IA + images +
+// communauté + domaine + DPE). Si au moins un critère individuel est
+// "danger", la recommandation ne peut jamais retomber à "Risque faible" —
+// même si le score agrégé reste bas. Sans ce plancher, un signal aussi
+// grave qu'un paiement exigé avant toute visite peut se diluer dans la
+// somme pondérée et afficher "aucune alerte majeure" à l'utilisateur
+// (découvert sur le cas #11 du tri des 25 cas de fraude : score 33,
+// sous le seuil de 40, alors que "Mode de paiement" était en danger).
+function buildRecommendation(score, criteria = []) {
+  const hasDangerCriterion = criteria.some(c => c.status === 'danger');
+
   if (score >= 70) {
     return 'Risque élevé : nous recommandons fortement de ne pas donner suite sans vérification approfondie (visite en personne, vérification d\'identité du propriétaire) et de ne jamais effectuer de paiement avant la visite.' + CONSEIL_PHISHING_PAIEMENT;
   }
-  if (score >= 40) {
+  if (score >= 40 || hasDangerCriterion) {
     return 'Risque modéré : procédez avec prudence, vérifiez chacun des points signalés avant tout engagement, et privilégiez une rencontre en personne.' + CONSEIL_PHISHING_PAIEMENT;
   }
   return 'Risque faible : les signaux collectés ne montrent pas d\'alerte majeure, mais restez vigilant comme pour toute transaction en ligne.' + CONSEIL_PHISHING_PAIEMENT;

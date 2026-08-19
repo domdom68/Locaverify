@@ -137,7 +137,7 @@ const surfaceM2 = (surface && parseFloat(surface) > 0) ? parseFloat(surface) : (
 
     adjustedScore = Math.round(Math.min(100, adjustedScore));
 
-    const recommendation = buildRecommendation(adjustedScore);
+    const recommendation = buildRecommendation(adjustedScore, allCriteria);
 
     // ── Extract perceptual hashes for the proprietary image registry ──
     const imageHashes = (imgData?.results || [])

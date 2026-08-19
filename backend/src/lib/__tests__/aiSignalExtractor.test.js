@@ -134,4 +134,24 @@ describe('buildRecommendation', () => {
     expect(buildRecommendation(0)).toMatch(/Risque faible/);
     expect(buildRecommendation(39)).toMatch(/Risque faible/);
   });
+
+  test('un score < 40 mais avec au moins un critère "danger" plancher la recommandation à "risque modéré" (cas #11 du tri des 25 cas : paiement avant visite noyé dans un score agrégé de 33)', () => {
+    const criteria = [
+      { label: 'Prix vs marché local', status: 'info' },
+      { label: 'Mode de paiement', status: 'danger' },
+    ];
+    expect(buildRecommendation(33, criteria)).toMatch(/Risque modéré/);
+  });
+
+  test('un score < 40 sans critère "danger" reste "risque faible", même avec des critères "warning"', () => {
+    const criteria = [
+      { label: 'Urgence et pression', status: 'warning' },
+      { label: 'Présence du propriétaire', status: 'warning' },
+    ];
+    expect(buildRecommendation(30, criteria)).toMatch(/Risque faible/);
+  });
+
+  test('sans argument criteria (appel existant), le comportement est inchangé', () => {
+    expect(buildRecommendation(30)).toMatch(/Risque faible/);
+  });
 });
