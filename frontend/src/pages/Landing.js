@@ -196,6 +196,7 @@ export default function Landing() {
           <li><a href="#tarifs">Tarifs</a></li>
           <li><a href="#faq">FAQ</a></li>
           <li><a href="#contact">Contact</a></li>
+          <li><a href="https://blog.seculoca.fr" target="_blank" rel="noopener noreferrer">Blog</a></li>
         </ul>
         <div style={{display:'flex',gap:'10px'}}>
           <Link to="/connexion" className="btn btn-outline">Se connecter</Link>
