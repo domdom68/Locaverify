@@ -197,6 +197,7 @@ export default function Landing() {
           <li><a href="#faq">FAQ</a></li>
           <li><a href="#contact">Contact</a></li>
           <li><a href="https://blog.seculoca.fr" target="_blank" rel="noopener noreferrer">Blog</a></li>
+          <li><a href="https://www.youtube.com/channel/UCKLTKXj-LNpGwsdUXZtv3NA" target="_blank" rel="noopener noreferrer">YouTube</a></li>
         </ul>
         <div style={{display:'flex',gap:'10px'}}>
           <Link to="/connexion" className="btn btn-outline">Se connecter</Link>
