@@ -69,6 +69,14 @@ export default function Layout({ children }) {
             >
               Blog
             </a>
+            <a
+              href="https://www.youtube.com/channel/UCKLTKXj-LNpGwsdUXZtv3NA"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3.5 py-2 rounded-lg text-sm font-medium transition-colors text-slate-600 hover:text-navy hover:bg-slate-50"
+            >
+              YouTube
+            </a>
           </nav>
 
           {/* Right */}
@@ -142,6 +150,15 @@ export default function Layout({ children }) {
               className="px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-slate-600"
             >
               Blog
+            </a>
+            <a
+              href="https://www.youtube.com/channel/UCKLTKXj-LNpGwsdUXZtv3NA"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setMobileMenuOpen(false)}
+              className="px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-slate-600"
+            >
+              YouTube
             </a>
           </div>
         )}
