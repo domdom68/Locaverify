@@ -61,6 +61,14 @@ export default function Layout({ children }) {
                 {label}
               </Link>
             ))}
+            <a
+              href="https://blog.seculoca.fr"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3.5 py-2 rounded-lg text-sm font-medium transition-colors text-slate-600 hover:text-navy hover:bg-slate-50"
+            >
+              Blog
+            </a>
           </nav>
 
           {/* Right */}
@@ -126,6 +134,15 @@ export default function Layout({ children }) {
                 {label}
               </Link>
             ))}
+            <a
+              href="https://blog.seculoca.fr"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setMobileMenuOpen(false)}
+              className="px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-slate-600"
+            >
+              Blog
+            </a>
           </div>
         )}
       </header>
