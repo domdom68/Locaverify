@@ -148,3 +148,4 @@ git push -u origin main
 ## Support
 
 En cas de problème, décrivez l'erreur à Claude avec le message exact affiché dans le terminal ou dans les logs Railway/Vercel.
+
