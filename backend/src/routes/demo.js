@@ -1,8 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const OpenAI = require('openai');
+const { computeTier } = require('../lib/reportBuilder');
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// Demo criteria don't use the exact same status vocabulary/weights as the
+// real engine, but a rough tier from the score alone is enough here — the
+// point is simply to never hand an anonymous, no-account visitor an exact
+// number + full itemised breakdown to iterate against for free.
+const TIER_LABELS = { faible: 'Risque faible', modere: 'Risque modéré', eleve: 'Risque élevé', critique: 'Risque critique' };
 
 // In-memory store for demo rate limiting (resets on server restart)
 // In production, use Redis for persistence
@@ -75,10 +82,19 @@ Format JSON attendu :
     // Record usage
     demoUsage.set(ip, { count: (usage?.count || 0) + 1, firstUsed: usage?.firstUsed || now });
 
+    // Never hand an anonymous visitor the exact score + full per-criterion
+    // breakdown — bucket into a wide tier and drop the itemised detail.
+    // The full, detailed report is reserved for signed-in users (and,
+    // there, shown as grouped families rather than raw criteria too).
+    const niveau = computeTier(analysis.risk_score || 0, []);
+
     return res.json({
-      ...analysis,
+      niveau,
+      niveauLabel: TIER_LABELS[niveau],
+      summary: analysis.summary,
+      recommendation: analysis.recommendation,
       isDemo: true,
-      message: 'Analyse gratuite utilisée. Créez un compte pour accéder à votre historique et 5 analyses supplémentaires.',
+      message: 'Analyse gratuite utilisée. Créez un compte pour accéder à votre historique, au rapport détaillé et à 5 analyses supplémentaires.',
     });
   } catch (err) {
     console.error('Demo analyse error:', err);

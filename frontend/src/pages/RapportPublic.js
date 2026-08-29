@@ -1,13 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import ReportCard from '../components/ReportCard';
+import { buildClientReport } from '../lib/reportBuilder';
 
 const API = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-
-function ScoreBadge({ score }) {
-  if (score >= 70) return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-100 text-red-700 text-sm font-semibold">🔴 Risque élevé — {score}/100</span>;
-  if (score >= 35) return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-sm font-semibold">🟡 Risque modéré — {score}/100</span>;
-  return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-100 text-green-700 text-sm font-semibold">🟢 Faible risque — {score}/100</span>;
-}
 
 export default function RapportPublic() {
   const { token } = useParams();
@@ -62,8 +58,7 @@ export default function RapportPublic() {
             </div>
 
             <div className="bg-white rounded-2xl border border-slate-100 p-6">
-              <ScoreBadge score={analyse.risk_score}/>
-              <p className="text-slate-600 text-sm mt-3 leading-relaxed">{analyse.summary}</p>
+              <p className="text-slate-600 text-sm leading-relaxed">{analyse.summary}</p>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -76,25 +71,7 @@ export default function RapportPublic() {
               ))}
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-              <div className="px-5 py-3.5 border-b border-slate-100">
-                <p className="font-semibold text-slate-900 text-sm">Détail des critères</p>
-              </div>
-              <div className="divide-y divide-slate-50">
-                {(analyse.criteria || []).map((c, i) => {
-                  const cfg = { ok: { icon: '✅', cls: 'text-green-700', bg: 'bg-green-50' }, warning: { icon: '⚠️', cls: 'text-amber-700', bg: 'bg-amber-50' }, danger: { icon: '🚨', cls: 'text-red-700', bg: 'bg-red-50' }, info: { icon: 'ℹ️', cls: 'text-blue-700', bg: 'bg-blue-50' } }[c.status] || { icon: 'ℹ️', cls: 'text-blue-700', bg: 'bg-blue-50' };
-                  return (
-                    <div key={i} className="flex items-start gap-3 px-5 py-3.5">
-                      <span className="text-lg flex-shrink-0">{cfg.icon}</span>
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-slate-900">{c.label}</p>
-                        <p className={`text-xs mt-0.5 ${cfg.cls}`}>{c.detail}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <ReportCard report={buildClientReport({ score: analyse.risk_score, criteria: analyse.criteria || [] })}/>
 
             {/* CTA */}
             <div className="bg-slate-900 rounded-2xl p-6 text-center">

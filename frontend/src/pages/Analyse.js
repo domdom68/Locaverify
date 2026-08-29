@@ -1,51 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import ReportCard from '../components/ReportCard';
 
 const API = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-
-function ScoreRing({ score }) {
-  const radius = 52;
-  const circ = 2 * Math.PI * radius;
-  const offset = circ - (score / 100) * circ;
-  const color = score >= 70 ? '#DC2626' : score >= 35 ? '#D97706' : '#059669';
-  const label = score >= 70 ? 'Risque élevé' : score >= 35 ? 'Risque modéré' : 'Faible risque';
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <svg width="120" height="120" viewBox="0 0 120 120">
-        <circle cx="60" cy="60" r={radius} fill="none" stroke="#E2E8F0" strokeWidth="10"/>
-        <circle cx="60" cy="60" r={radius} fill="none" stroke={color} strokeWidth="10"
-          strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
-          style={{ transform: 'rotate(-90deg)', transformOrigin: '60px 60px', transition: 'stroke-dashoffset 1s ease' }}/>
-        <text x="60" y="57" textAnchor="middle" dominantBaseline="middle" fontSize="26" fontWeight="700" fill={color}>{score}</text>
-        <text x="60" y="77" textAnchor="middle" dominantBaseline="middle" fontSize="9" fill="#94A3B8">/100</text>
-      </svg>
-      <span className="text-sm font-semibold" style={{ color }}>{label}</span>
-    </div>
-  );
-}
-
-function CriterionRow({ icon, label, status, detail }) {
-  const statusConfig = {
-    ok:      { icon: '✅', cls: 'text-green-600', bg: 'bg-green-50', label: 'OK' },
-    warning: { icon: '⚠️', cls: 'text-amber-600', bg: 'bg-amber-50', label: 'Attention' },
-    danger:  { icon: '🚨', cls: 'text-red-600',   bg: 'bg-red-50',   label: 'Suspect' },
-    info:    { icon: 'ℹ️', cls: 'text-blue-600',  bg: 'bg-blue-50',  label: 'Info' },
-  };
-  const cfg = statusConfig[status] || statusConfig.info;
-  return (
-    <div className="flex items-start gap-3 py-3 border-b border-slate-50 last:border-0">
-      <span className="text-lg flex-shrink-0">{cfg.icon}</span>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-sm font-semibold text-slate-900">{label}</p>
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.bg} ${cfg.cls}`}>{cfg.label}</span>
-        </div>
-        <p className={`text-xs mt-0.5 ${cfg.cls}`}>{detail}</p>
-      </div>
-    </div>
-  );
-}
 
 const EMPTY_FORM = { url: '', description: '', prix: '', surface: '', localisation: '', proprietaire: '', telephone: '', duree_prix: 'mois'  };
 
@@ -108,7 +66,7 @@ export default function Analyse() {
 
       const verifyData = await verifyRes.json();
       console.log('[DPE] Score mis à jour avec succès:', verifyData.risk_score);
-      setResult(prev => (prev ? { ...prev, risk_score: verifyData.risk_score, criteria: verifyData.criteria } : prev));
+      setResult(prev => (prev ? { ...prev, risk_score: verifyData.risk_score, criteria: verifyData.criteria, report: verifyData.report } : prev));
     } catch (err) {
       console.error('[DPE] Échec de la vérification DPE:', err);
     }
@@ -288,19 +246,11 @@ export default function Analyse() {
       {step === 'done' && result && (
         <div className="animate-fadeIn space-y-4">
           <div className="bg-white rounded-2xl border border-slate-100 p-6">
-            <div className="flex flex-col sm:flex-row items-center gap-5">
-              <ScoreRing score={result.risk_score}/>
-              <div className="flex-1 text-center sm:text-left">
-                <h2 className="font-serif text-xl text-slate-900 mb-2" style={{ fontFamily: "'DM Serif Display', serif" }}>Résultat de l'analyse</h2>
-                <p className="text-sm text-slate-600 leading-relaxed">{result.summary}</p>
-              </div>
-            </div>
+            <h2 className="font-serif text-xl text-slate-900 mb-2" style={{ fontFamily: "'DM Serif Display', serif" }}>Résultat de l'analyse</h2>
+            <p className="text-sm text-slate-600 leading-relaxed">{result.summary}</p>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-100 p-5">
-            <h3 className="font-semibold text-slate-900 text-sm mb-1">Détail des critères</h3>
-            {result.criteria?.map((c, i) => <CriterionRow key={i} {...c}/>)}
-          </div>
+          <ReportCard report={result.report}/>
 
           <div className="flex gap-3">
             <button onClick={() => { setStep('idle'); setResult(null); setForm(EMPTY_FORM); }}

@@ -3,33 +3,28 @@ import { Link } from 'react-router-dom';
 
 const API = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
-function ScoreRing({ score }) {
-  const radius = 44;
-  const circ = 2 * Math.PI * radius;
-  const offset = circ - (score / 100) * circ;
-  const color = score >= 70 ? '#DC2626' : score >= 35 ? '#D97706' : '#059669';
-  const label = score >= 70 ? 'Risque élevé' : score >= 35 ? 'Risque modéré' : 'Faible risque';
+// Qualitative tier only — no exact score, no per-criterion breakdown.
+// The demo is anonymous and free, so it's the cheapest possible vector for
+// someone to probe the engine in a loop; a wide tier removes the fine-grained
+// feedback signal while still being genuinely useful to a real visitor.
+const TIER_CFG = {
+  faible:   { color: '#059669', bg: '#ECFDF5', label: 'Risque faible' },
+  modere:   { color: '#D97706', bg: '#FFFBEB', label: 'Risque modéré' },
+  eleve:    { color: '#DC2626', bg: '#FEF2F2', label: 'Risque élevé' },
+  critique: { color: '#B91C1C', bg: '#FEF2F2', label: 'Risque critique' },
+};
+
+function TierBadge({ niveau, niveauLabel }) {
+  const cfg = TIER_CFG[niveau] || TIER_CFG.modere;
   return (
-    <div className="flex flex-col items-center gap-1">
-      <svg width="100" height="100" viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r={radius} fill="none" stroke="#E2E8F0" strokeWidth="9"/>
-        <circle cx="50" cy="50" r={radius} fill="none" stroke={color} strokeWidth="9"
-          strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
-          style={{ transform: 'rotate(-90deg)', transformOrigin: '50px 50px', transition: 'stroke-dashoffset 1s ease' }}/>
-        <text x="50" y="47" textAnchor="middle" dominantBaseline="middle" fontSize="22" fontWeight="700" fill={color}>{score}</text>
-        <text x="50" y="63" textAnchor="middle" dominantBaseline="middle" fontSize="8" fill="#94A3B8">/100</text>
-      </svg>
-      <span className="text-sm font-semibold" style={{ color }}>{label}</span>
+    <div className="flex flex-col items-center gap-2 flex-shrink-0">
+      <div className="w-24 h-24 rounded-full flex items-center justify-center" style={{ backgroundColor: cfg.bg, border: `3px solid ${cfg.color}` }}>
+        <span className="text-3xl">{niveau === 'faible' ? '🟢' : niveau === 'modere' ? '🟡' : '🔴'}</span>
+      </div>
+      <span className="text-sm font-semibold" style={{ color: cfg.color }}>{niveauLabel || cfg.label}</span>
     </div>
   );
 }
-
-const STATUS_CFG = {
-  ok:      { icon: '✅', bg: 'bg-green-50', text: 'text-green-700', label: 'OK' },
-  warning: { icon: '⚠️', bg: 'bg-amber-50',  text: 'text-amber-700',  label: 'Attention' },
-  danger:  { icon: '🚨', bg: 'bg-red-50',    text: 'text-red-700',    label: 'Suspect' },
-  info:    { icon: 'ℹ️', bg: 'bg-blue-50',   text: 'text-blue-700',   label: 'Info' },
-};
 
 export default function Demo() {
   const [form, setForm]     = useState({ url: '', description: '', prix: '', localisation: '' });
@@ -188,43 +183,27 @@ export default function Demo() {
           </div>
         ) : (
           <div className="space-y-4 animate-fadeIn">
-            {/* Score */}
+            {/* Tier */}
             <div className="bg-white rounded-2xl border border-slate-100 p-6 flex flex-col sm:flex-row items-center gap-6">
-              <ScoreRing score={result.risk_score}/>
+              <TierBadge niveau={result.niveau} niveauLabel={result.niveauLabel}/>
               <div className="flex-1 text-center sm:text-left">
                 <p className="font-semibold text-slate-900 mb-1">Résultat de l'analyse</p>
                 <p className="text-sm text-slate-600 leading-relaxed">{result.summary}</p>
               </div>
             </div>
 
-            {/* Criteria */}
-            <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-              <div className="px-5 py-3.5 border-b border-slate-100">
-                <p className="font-semibold text-slate-900 text-sm">Détail de l'analyse — {result.criteria?.length || 0} critères</p>
+            {/* Recommendation */}
+            {result.recommendation && (
+              <div className="bg-white rounded-2xl border border-slate-100 p-5">
+                <p className="font-semibold text-sm text-slate-900 mb-1">💡 Notre recommandation</p>
+                <p className="text-sm text-slate-600">{result.recommendation}</p>
               </div>
-              <div className="divide-y divide-slate-50">
-                {result.criteria?.map((c, i) => {
-                  const cfg = STATUS_CFG[c.status] || STATUS_CFG.info;
-                  return (
-                    <div key={i} className="flex items-start gap-3 px-5 py-3.5">
-                      <span className="text-lg flex-shrink-0">{cfg.icon}</span>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-semibold text-slate-900">{c.label}</p>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.bg} ${cfg.text}`}>{cfg.label}</span>
-                        </div>
-                        <p className="text-xs text-slate-500 mt-0.5">{c.detail}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            )}
 
             {/* CTA */}
             <div className="bg-slate-900 rounded-2xl p-6 text-center">
               <p className="text-white font-semibold text-base mb-1">Vous avez utilisé votre analyse gratuite</p>
-              <p className="text-slate-400 text-sm mb-5">Créez un compte pour obtenir 5 analyses supplémentaires, l'historique complet et les rapports PDF.</p>
+              <p className="text-slate-400 text-sm mb-5">Créez un compte gratuit pour voir le rapport détaillé par catégorie (bailleur, paiement, photos…), l'historique complet et les rapports PDF.</p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Link to="/connexion" className="px-6 py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 transition-colors">
                   Créer mon compte — c'est gratuit

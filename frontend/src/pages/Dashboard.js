@@ -2,11 +2,20 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
+import { computeTier } from '../lib/reportBuilder';
 const PLAN_QUOTAS = { essentiel: 20, max: 60 };
-function ScoreBadge({ score }) {
-  if (score >= 70) return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-50 text-red-700 text-xs font-semibold">🔴 Risque élevé ({score})</span>;
-  if (score >= 35) return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold">🟡 Risque modéré ({score})</span>;
-  return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-green-50 text-green-700 text-xs font-semibold">🟢 Faible risque ({score})</span>;
+// Qualitative only — no exact score badge in the history list either,
+// otherwise comparing entries across the dashboard becomes just another
+// way to see exactly how much a tweak moved the number. See lib/reportBuilder.js.
+function ScoreBadge({ score, criteria }) {
+  const niveau = computeTier(score, criteria || []);
+  const cfg = {
+    faible:   { icon: '🟢', bg: 'bg-green-50', text: 'text-green-700', label: 'Risque faible' },
+    modere:   { icon: '🟡', bg: 'bg-amber-50', text: 'text-amber-700', label: 'Risque modéré' },
+    eleve:    { icon: '🔴', bg: 'bg-red-50',   text: 'text-red-700',   label: 'Risque élevé' },
+    critique: { icon: '🆘', bg: 'bg-red-100',  text: 'text-red-800',   label: 'Risque critique' },
+  }[niveau];
+  return <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full ${cfg.bg} ${cfg.text} text-xs font-semibold`}>{cfg.icon} {cfg.label}</span>;
 }
 
 export default function Dashboard() {
@@ -88,7 +97,7 @@ export default function Dashboard() {
         </div>
         <div className="bg-white rounded-2xl border border-slate-100 p-5 col-span-2 sm:col-span-1">
           <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Annonces suspectes</p>
-          <p className="text-3xl font-bold text-red-500">{analyses.filter(a => a.risk_score >= 70).length}</p>
+          <p className="text-3xl font-bold text-red-500">{analyses.filter(a => ['eleve', 'critique'].includes(computeTier(a.risk_score, a.criteria || []))).length}</p>
         </div>
       </div>
 
@@ -142,7 +151,7 @@ export default function Dashboard() {
                   </p>
                 </div>
                 <div className="flex items-center gap-3 ml-4">
-                  <ScoreBadge score={a.risk_score} />
+                  <ScoreBadge score={a.risk_score} criteria={a.criteria} />
                   <Link to={`/rapport/${a.id}`} className="text-xs text-blue-600 font-medium hover:underline flex-shrink-0">
                     Voir →
                   </Link>

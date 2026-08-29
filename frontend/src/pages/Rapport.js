@@ -1,14 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import ReportCard from '../components/ReportCard';
+import { buildClientReport } from '../lib/reportBuilder';
 
 const API = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-
-function ScoreBadge({ score }) {
-  if (score >= 70) return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-100 text-red-700 text-sm font-semibold">🔴 Risque élevé — {score}/100</span>;
-  if (score >= 35) return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-sm font-semibold">🟡 Risque modéré — {score}/100</span>;
-  return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-100 text-green-700 text-sm font-semibold">🟢 Faible risque — {score}/100</span>;
-}
 
 // ── Feedback widget ──────────────────────────────────────────────
 function FeedbackPanel({ analyseId }) {
@@ -186,16 +182,20 @@ export default function Rapport() {
     load();
   }, [id]);
 
+  // The PDF mirrors ReportCard — qualitative tier + 6 grouped families,
+  // never the exact score or the 15 raw criteria. See lib/reportBuilder.js.
   const exportPDF = async () => {
     const { jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const criteria = analyse.criteria || [];
-    const score = analyse.risk_score;
-    const riskLabel = score >= 70 ? 'RISQUE ÉLEVÉ' : score >= 35 ? 'RISQUE MODÉRÉ' : 'FAIBLE RISQUE';
-    const riskColor = score >= 70 ? [220, 38, 38] : score >= 35 ? [217, 119, 6] : [5, 150, 105];
-    const statusLabel = { ok: 'OK', warning: 'Attention', danger: 'Suspect', info: 'Info' };
-    const statusColor = { ok: [22,163,74], warning: [217,119,6], danger: [220,38,38], info: [37,99,235] };
+    const report = buildClientReport({ score: analyse.risk_score, criteria: analyse.criteria || [] });
+
+    const TIER_COLOR = {
+      faible: [5, 150, 105], modere: [217, 119, 6], eleve: [220, 38, 38], critique: [153, 27, 27],
+    };
+    const STATUT_LABEL = { alerte: 'Alerte', attention: 'À vérifier', conforme: 'Conforme', partiel: 'Non analysable' };
+    const STATUT_COLOR = { alerte: [220,38,38], attention: [217,119,6], conforme: [22,163,74], partiel: [100,116,139] };
+    const riskColor = TIER_COLOR[report.niveau] || TIER_COLOR.modere;
 
     doc.setFillColor(15, 27, 53);
     doc.rect(0, 0, 210, 32, 'F');
@@ -206,9 +206,8 @@ export default function Rapport() {
     doc.setTextColor(148, 163, 184);
     doc.text('Rapport d\'analyse — ' + new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }), 14, 27);
     doc.setTextColor(...riskColor);
-    doc.setFontSize(40); doc.setFont('helvetica', 'bold');
-    doc.text(`${score}`, 168, 20);
-    doc.setFontSize(9); doc.text(riskLabel, 155, 27);
+    doc.setFontSize(18); doc.setFont('helvetica', 'bold');
+    doc.text(report.niveauLabel.toUpperCase(), 210 - 14, 18, { align: 'right' });
 
     let y = 44;
     doc.setTextColor(30, 41, 59); doc.setFontSize(14); doc.setFont('helvetica', 'bold');
@@ -223,33 +222,59 @@ export default function Rapport() {
     });
 
     y += 4; doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 41, 59);
-    doc.text('Résumé', 14, y); y += 6;
+    doc.text('Verdict', 14, y); y += 6;
     doc.setFontSize(9.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(71, 85, 105);
-    const summary = doc.splitTextToSize(analyse.summary || '', 182);
-    doc.text(summary, 14, y); y += summary.length * 5 + 8;
+    const verdictLines = doc.splitTextToSize(report.verdict, 182);
+    doc.text(verdictLines, 14, y); y += verdictLines.length * 5 + 8;
+
+    if (report.resumeAlertes.length > 0) {
+      doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 41, 59);
+      doc.text('Ce qui a retenu notre attention', 14, y); y += 6;
+      doc.setFontSize(9.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(71, 85, 105);
+      report.resumeAlertes.forEach(txt => {
+        const lines = doc.splitTextToSize('•  ' + txt, 182);
+        doc.text(lines, 14, y); y += lines.length * 5 + 2;
+      });
+      y += 4;
+    }
 
     doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 41, 59);
-    doc.text('Analyse détaillée', 14, y); y += 4;
+    doc.text('Analyse par catégories', 14, y); y += 4;
 
     autoTable(doc, {
       startY: y,
-      head: [['Critère', 'Statut', 'Détail']],
-      body: criteria.map(c => [c.label, statusLabel[c.status] || c.status, c.detail]),
+      head: [['Catégorie', 'Statut', 'Lecture']],
+      body: report.familles.map(f => [f.titre, STATUT_LABEL[f.statut] || f.statut, f.lecture]),
       styles: { fontSize: 9, cellPadding: 4 },
       headStyles: { fillColor: [15, 27, 53], textColor: 255, fontStyle: 'bold' },
-      columnStyles: { 0: { cellWidth: 45 }, 1: { cellWidth: 28 }, 2: { cellWidth: 110 } },
+      columnStyles: { 0: { cellWidth: 42 }, 1: { cellWidth: 26 }, 2: { cellWidth: 114 } },
       alternateRowStyles: { fillColor: [248, 250, 252] },
       didParseCell: (data) => {
         if (data.column.index === 1 && data.row.section === 'body') {
-          const st = criteria[data.row.index]?.status;
-          if (statusColor[st]) { data.cell.styles.textColor = statusColor[st]; data.cell.styles.fontStyle = 'bold'; }
+          const st = report.familles[data.row.index]?.statut;
+          if (STATUT_COLOR[st]) { data.cell.styles.textColor = STATUT_COLOR[st]; data.cell.styles.fontStyle = 'bold'; }
         }
       },
+      didDrawPage: (data) => { y = data.cursor.y; },
     });
+
+    y += 8;
+    if (y > 250) { doc.addPage(); y = 20; }
+    doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 41, 59);
+    doc.text('Vos prochaines étapes', 14, y); y += 6;
+    doc.setFontSize(9.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(71, 85, 105);
+    report.prochainesEtapes.forEach((txt, i) => {
+      const lines = doc.splitTextToSize(`${i + 1}.  ${txt}`, 182);
+      doc.text(lines, 14, y); y += lines.length * 5 + 2;
+    });
+
+    y += 6;
+    doc.setFontSize(8); doc.setFont('helvetica', 'italic'); doc.setTextColor(148, 163, 184);
+    doc.text(doc.splitTextToSize(report.mention, 182), 14, y);
 
     const pageCount = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i); doc.setFontSize(8); doc.setTextColor(148, 163, 184);
+      doc.setPage(i); doc.setFontSize(8); doc.setTextColor(148, 163, 184); doc.setFont('helvetica', 'normal');
       doc.text('Seculoca — seculoca.fr · Ce rapport est fourni à titre informatif.', 14, 290);
       doc.text(`${i}/${pageCount}`, 200, 290, { align: 'right' });
     }
@@ -259,7 +284,7 @@ export default function Rapport() {
   if (loading) return <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/></div>;
   if (!analyse) return <div className="text-center py-20 text-slate-500">Rapport introuvable. <Link to="/dashboard" className="text-blue-600 underline">Retour</Link></div>;
 
-  const criteria = analyse.criteria || [];
+  const report = buildClientReport({ score: analyse.risk_score, criteria: analyse.criteria || [] });
 
   return (
     <div className="animate-fadeIn max-w-3xl mx-auto">
@@ -290,20 +315,9 @@ export default function Rapport() {
         </Link>
       </div>
 
-      {/* Score card */}
+      {/* Summary */}
       <div className="bg-white rounded-2xl border border-slate-100 p-6 mb-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex-1">
-            <ScoreBadge score={analyse.risk_score}/>
-            <p className="text-slate-600 text-sm mt-3 leading-relaxed">{analyse.summary}</p>
-          </div>
-          <div className="flex-shrink-0 text-center">
-            <div className="text-6xl font-bold" style={{ color: analyse.risk_score >= 70 ? '#DC2626' : analyse.risk_score >= 35 ? '#D97706' : '#059669' }}>
-              {analyse.risk_score}
-            </div>
-            <div className="text-xs text-slate-400">/100</div>
-          </div>
-        </div>
+        <p className="text-slate-600 text-sm leading-relaxed">{analyse.summary}</p>
       </div>
 
       {/* Info grid */}
@@ -317,43 +331,10 @@ export default function Rapport() {
         ))}
       </div>
 
-      {/* Criteria */}
-      <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden mb-4">
-        <div className="px-6 py-4 border-b border-slate-100">
-          <h2 className="font-semibold text-slate-900 text-sm">Détail de l'analyse — {criteria.length} critères</h2>
-        </div>
-        <div className="divide-y divide-slate-50">
-          {criteria.map((c, i) => {
-            const statusConfig = {
-              ok:      { icon: '✅', bg: 'bg-green-50', text: 'text-green-700', label: 'OK' },
-              warning: { icon: '⚠️', bg: 'bg-amber-50', text: 'text-amber-700', label: 'Attention' },
-              danger:  { icon: '🚨', bg: 'bg-red-50',   text: 'text-red-700',   label: 'Suspect' },
-              info:    { icon: 'ℹ️', bg: 'bg-blue-50',  text: 'text-blue-700',  label: 'Info' },
-            };
-            const cfg = statusConfig[c.status] || statusConfig.info;
-            return (
-              <div key={i} className="flex items-start gap-4 px-6 py-4">
-                <span className="text-xl flex-shrink-0">{cfg.icon}</span>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-semibold text-slate-900">{c.label}</p>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.bg} ${cfg.text}`}>{cfg.label}</span>
-                  </div>
-                  <p className="text-sm text-slate-500 mt-1">{c.detail}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      {/* Report: qualitative tier + 6 grouped families (see lib/reportBuilder.js) */}
+      <div className="mb-4">
+        <ReportCard report={report}/>
       </div>
-
-      {/* Recommendation */}
-      {analyse.recommendation && (
-        <div className={`rounded-2xl border p-5 mb-4 ${analyse.risk_score >= 70 ? 'bg-red-50 border-red-200' : analyse.risk_score >= 35 ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'}`}>
-          <p className="font-semibold text-sm text-slate-900 mb-1">💡 Notre recommandation</p>
-          <p className="text-sm text-slate-600">{analyse.recommendation}</p>
-        </div>
-      )}
 
       {/* Share + Watch */}
       <div className="mb-4">

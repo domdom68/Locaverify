@@ -8,6 +8,7 @@ const { extractListingSignals, computeDeterministicScore, buildRecommendation } 
 const { lookupRentBenchmark } = require('../lib/priceBenchmark');
 const { pickBestDpeMatch, buildDpeCriterion, buildAdemeQueryUrl } = require('../lib/dpeCheck');
 const { checkDomainSpoof, buildDomainCriterion } = require('../lib/domainSpoofCheck');
+const { buildClientReport } = require('../lib/reportBuilder');
 
 const DPE_LABEL = 'Cohérence adresse/surface (DPE)';
 
@@ -192,8 +193,16 @@ const surfaceM2 = (surface && parseFloat(surface) > 0) ? parseFloat(surface) : (
       }).catch(console.error);
     }
 
+    // ── Client-facing report: qualitative tier + 6 grouped families ──
+    // (see reportBuilder.js — this is what the UI/PDF should render from
+    // now on ; risk_score/criteria below stay for internal tooling and
+    // for the DPE-verify merge, and are on the deprecation list once the
+    // frontend has fully switched over — see point 2 of the anti-abuse plan).
+    const report = buildClientReport({ score: adjustedScore, criteria: allCriteria });
+
     return res.json({
       id: saved.id,
+      report,
       risk_score: adjustedScore,
       summary: aiSummary,
       recommendation,
@@ -257,7 +266,10 @@ router.post('/:id/dpe-verify', requireAuth, async (req, res) => {
     return res.status(500).json({ error: 'Erreur mise à jour : ' + updateError.message });
   }
 
+  const report = buildClientReport({ score: newScore, criteria: updatedCriteria });
+
   return res.json({
+    report,
     risk_score: newScore,
     criteria: updatedCriteria,
     dpeCriterion: newDpeCriterion,
