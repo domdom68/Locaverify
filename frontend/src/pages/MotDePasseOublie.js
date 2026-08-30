@@ -1,21 +1,34 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import Turnstile from '../components/Turnstile';
+
+// Point 2 du plan anti-abus : Supabase applique la vérification Turnstile
+// (Attack Protection) à toutes les requêtes Auth sensibles, y compris
+// resetPasswordForEmail — pas seulement signUp. Sans la case ci-dessous,
+// Supabase refuse la demande avec "captcha protection: request disallowed".
+const REQUIRE_CAPTCHA = !!process.env.REACT_APP_TURNSTILE_SITE_KEY;
 
 export default function MotDePasseOublie() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (REQUIRE_CAPTCHA && !captchaToken) {
+      setError('Merci de valider la case de vérification ci-dessous.');
+      return;
+    }
     setLoading(true);
     setError('');
     setSuccess(false);
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reinitialiser-mot-de-passe`,
+      captchaToken: captchaToken || undefined,
     });
 
     if (error) setError(error.message);
@@ -57,6 +70,10 @@ export default function MotDePasseOublie() {
                 />
               </div>
 
+              {REQUIRE_CAPTCHA && (
+                <Turnstile onVerify={setCaptchaToken} onExpire={() => setCaptchaToken('')} />
+              )}
+
               {error && (
                 <div className="flex items-start gap-2 p-3 bg-red-50 rounded-lg text-sm text-red-600">
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="mt-0.5 flex-shrink-0"><circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5"/><path d="M8 5V8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><circle cx="8" cy="11" r="0.75" fill="currentColor"/></svg>
@@ -66,7 +83,7 @@ export default function MotDePasseOublie() {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || (REQUIRE_CAPTCHA && !captchaToken)}
                 className="w-full py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
