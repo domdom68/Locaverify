@@ -9,8 +9,18 @@ const { lookupRentBenchmark } = require('../lib/priceBenchmark');
 const { pickBestDpeMatch, buildDpeCriterion, buildAdemeQueryUrl } = require('../lib/dpeCheck');
 const { checkDomainSpoof, buildDomainCriterion } = require('../lib/domainSpoofCheck');
 const { buildClientReport } = require('../lib/reportBuilder');
+const { isNearDuplicate } = require('../lib/abuseDetection');
 
 const DPE_LABEL = 'Cohérence adresse/surface (DPE)';
+
+// Point 2 du plan anti-abus : freiner un compte qui reteste la même annonce
+// (ou une variante à peine modifiée — prix ajusté de quelques euros, une
+// phrase reformulée) plusieurs fois de suite. C'est le cœur de l'attaque
+// "oracle" qu'un arnaqueur utiliserait pour ajuster une fausse annonce
+// jusqu'à passer sous les radars du rapport qualitatif.
+const NEARDUP_WINDOW_MS = 3 * 60 * 60 * 1000;   // fenêtre d'historique comparée : 3h
+const NEARDUP_THRESHOLD = 2;                     // à partir de la 3e soumission quasi-identique...
+const NEARDUP_COOLDOWN_MS = 30 * 60 * 1000;      // ...on impose 30 min d'attente avant la suivante
 
 // POST /api/analyse
 router.post('/', requireAuth, async (req, res) => {
@@ -28,6 +38,37 @@ router.post('/', requireAuth, async (req, res) => {
   const planState = await getUserPlanState(userId);
   if (!planState.canAnalyse) {
     return res.status(402).json({ error: planState.reason, plan: planState.plan });
+  }
+
+  // ── Point 2 du plan anti-abus : détection des tests en boucle ────
+  // Avant de lancer le pipeline (coûteux) et de décompter un crédit, on
+  // vérifie si cette annonce ressemble fortement à une ou plusieurs
+  // soumissions récentes de ce même compte.
+  try {
+    const { data: recent } = await supabase
+      .from('analyses')
+      .select('description, prix, localisation, created_at')
+      .eq('user_id', userId)
+      .gte('created_at', new Date(Date.now() - NEARDUP_WINDOW_MS).toISOString())
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    const candidate = { description, prix, localisation };
+    const duplicates = (recent || []).filter(prev => isNearDuplicate(candidate, prev));
+
+    if (duplicates.length >= NEARDUP_THRESHOLD) {
+      const elapsed = Date.now() - new Date(duplicates[0].created_at).getTime();
+      if (elapsed < NEARDUP_COOLDOWN_MS) {
+        const waitMin = Math.max(1, Math.ceil((NEARDUP_COOLDOWN_MS - elapsed) / 60000));
+        return res.status(429).json({
+          error: `Cette annonce (ou une version très proche) a déjà été analysée plusieurs fois récemment. Merci de patienter encore ${waitMin} minute${waitMin > 1 ? 's' : ''}, ou consultez le rapport déjà obtenu depuis votre tableau de bord.`,
+        });
+      }
+    }
+  } catch (dupCheckErr) {
+    // Une panne de cette vérification ne doit jamais empêcher une analyse
+    // légitime — on log et on continue normalement.
+    console.error('Vérification anti-doublon échouée (analyse autorisée quand même) :', dupCheckErr.message);
   }
 
   try {

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const OpenAI = require('openai');
 const { computeTier } = require('../lib/reportBuilder');
+const { verifyTurnstileToken } = require('../lib/turnstile');
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -24,6 +25,16 @@ router.post('/analyse', async (req, res) => {
   const ip = getDemoKey(req);
   const now = Date.now();
   const DAY_MS = 24 * 60 * 60 * 1000;
+
+  // Point 2 du plan anti-abus : la démo est accessible sans compte, donc la
+  // cible la plus facile pour un script automatisé qui changerait d'IP en
+  // boucle. Le captcha Turnstile bloque l'essentiel des scripts avant même
+  // d'atteindre la logique de limitation ci-dessous.
+  const { turnstileToken } = req.body;
+  const captchaCheck = await verifyTurnstileToken(turnstileToken, ip);
+  if (!captchaCheck.success) {
+    return res.status(400).json({ error: captchaCheck.error || 'Vérification anti-robot échouée.' });
+  }
 
   // Rate limit: 1 demo per IP per 24h
   const usage = demoUsage.get(ip);

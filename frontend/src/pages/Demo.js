@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import Turnstile from '../components/Turnstile';
 
 const API = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+const REQUIRE_CAPTCHA = !!process.env.REACT_APP_TURNSTILE_SITE_KEY;
 
 // Qualitative tier only — no exact score, no per-criterion breakdown.
 // The demo is anonymous and free, so it's the cheapest possible vector for
@@ -32,6 +34,7 @@ export default function Demo() {
   const [loading, setLoading] = useState(false);
   const [error, setError]   = useState('');
   const [scraping, setScraping] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState('');
 
   const update = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
@@ -62,12 +65,16 @@ export default function Demo() {
 
   const handleSubmit = async e => {
     e.preventDefault();
+    if (REQUIRE_CAPTCHA && !captchaToken) {
+      setError('Merci de valider la case anti-robot avant de lancer l\'analyse.');
+      return;
+    }
     setLoading(true); setError('');
     try {
       const res = await fetch(`${API}/api/demo/analyse`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, turnstileToken: captchaToken }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -75,6 +82,7 @@ export default function Demo() {
     } catch (err) {
       setError(err.message);
     }
+    setCaptchaToken('');
     setLoading(false);
   };
 
@@ -156,6 +164,8 @@ export default function Demo() {
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none"/>
               </div>
 
+              <Turnstile onVerify={setCaptchaToken} onExpire={() => setCaptchaToken('')} />
+
               {error && (
                 <div className="p-3 bg-red-50 rounded-lg text-sm text-red-600 flex items-start gap-2">
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="mt-0.5 flex-shrink-0"><circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5"/><path d="M8 5V8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><circle cx="8" cy="11" r="0.75" fill="currentColor"/></svg>
@@ -168,7 +178,7 @@ export default function Demo() {
                 </div>
               )}
 
-              <button type="submit" disabled={loading}
+              <button type="submit" disabled={loading || (REQUIRE_CAPTCHA && !captchaToken)}
                 className="w-full py-3.5 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                 {loading
                   ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>Analyse en cours…</>
