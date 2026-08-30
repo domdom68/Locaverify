@@ -182,101 +182,167 @@ export default function Rapport() {
     load();
   }, [id]);
 
-  // The PDF mirrors ReportCard — qualitative tier + 6 grouped families,
-  // never the exact score or the 15 raw criteria. See lib/reportBuilder.js.
+  // The PDF mirrors ReportCard's "Dashboard" direction — segmented risk
+  // meter, category cards, navy next-steps panel — qualitative tier + 6
+  // grouped families, never the exact score or the 15 raw criteria.
+  // See lib/reportBuilder.js and components/ReportCard.js.
   const exportPDF = async () => {
     const { jsPDF } = await import('jspdf');
-    const { default: autoTable } = await import('jspdf-autotable');
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const report = buildClientReport({ score: analyse.risk_score, criteria: analyse.criteria || [] });
 
-    const TIER_COLOR = {
-      faible: [5, 150, 105], modere: [217, 119, 6], eleve: [220, 38, 38], critique: [153, 27, 27],
-    };
-    const STATUT_LABEL = { alerte: 'Alerte', attention: 'À vérifier', conforme: 'Conforme', partiel: 'Non analysable' };
-    const STATUT_COLOR = { alerte: [220,38,38], attention: [217,119,6], conforme: [22,163,74], partiel: [100,116,139] };
+    const NAVY = [15, 27, 53];
+    const TIER_ORDER = ['faible', 'modere', 'eleve', 'critique'];
+    const TIER_LABEL_SHORT = { faible: 'Faible', modere: 'Modéré', eleve: 'Élevé', critique: 'Critique' };
+    const TIER_COLOR = { faible: [22, 163, 74], modere: [217, 119, 6], eleve: [220, 38, 38], critique: [220, 38, 38] };
+    const TIER_COLOR_MUTED = { faible: [209, 250, 229], modere: [254, 243, 199], eleve: [254, 226, 226], critique: [254, 226, 226] };
     const riskColor = TIER_COLOR[report.niveau] || TIER_COLOR.modere;
 
-    doc.setFillColor(15, 27, 53);
-    doc.rect(0, 0, 210, 32, 'F');
+    const STATUT_LABEL = { alerte: 'Alerte', attention: 'À vérifier', conforme: 'Conforme', partiel: 'Non analysable' };
+    const STATUT_COLOR = { alerte: [220,38,38], attention: [217,119,6], conforme: [22,163,74], partiel: [100,116,139] };
+    const STATUT_BG = { alerte: [254,242,242], attention: [255,251,235], conforme: [240,253,244], partiel: [248,250,252] };
+
+    const MARGIN = 14, PAGE_W = 210, CONTENT_W = 182;
+
+    const ensureSpace = (needed, y) => {
+      if (y + needed > 278) { doc.addPage(); return 20; }
+      return y;
+    };
+
+    // ── Header ──────────────────────────────────────────────────
+    doc.setFillColor(...NAVY);
+    doc.rect(0, 0, PAGE_W, 28, 'F');
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(20); doc.setFont('helvetica', 'bold');
-    doc.text('Seculoca', 14, 14);
+    doc.setFontSize(18); doc.setFont('helvetica', 'bold');
+    doc.text('Seculoca', MARGIN, 13);
     doc.setFontSize(9); doc.setFont('helvetica', 'normal');
     doc.setTextColor(148, 163, 184);
-    doc.text('Rapport d\'analyse — ' + new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }), 14, 27);
-    doc.setTextColor(...riskColor);
-    doc.setFontSize(18); doc.setFont('helvetica', 'bold');
-    doc.text(report.niveauLabel.toUpperCase(), 210 - 14, 18, { align: 'right' });
+    doc.text('Rapport d\'analyse — ' + new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }), MARGIN, 22);
 
-    let y = 44;
-    doc.setTextColor(30, 41, 59); doc.setFontSize(14); doc.setFont('helvetica', 'bold');
-    doc.text('Informations', 14, y); y += 8;
+    let y = 40;
+
+    // ── Niveau de risque + jauge segmentée ─────────────────────
+    doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(148, 163, 184);
+    doc.text('NIVEAU DE RISQUE', MARGIN, y); y += 7;
+    doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.setTextColor(...riskColor);
+    doc.text(report.niveauLabel, MARGIN, y); y += 6;
+
+    const segGap = 2, segW = (CONTENT_W - segGap * 3) / 4;
+    TIER_ORDER.forEach((t, i) => {
+      const x = MARGIN + i * (segW + segGap);
+      doc.setFillColor(...(t === report.niveau ? TIER_COLOR[t] : TIER_COLOR_MUTED[t]));
+      doc.roundedRect(x, y, segW, 2.4, 1.2, 1.2, 'F');
+    });
+    y += 5.5;
+    TIER_ORDER.forEach((t, i) => {
+      const x = MARGIN + i * (segW + segGap);
+      const active = t === report.niveau;
+      doc.setFontSize(7.5); doc.setFont('helvetica', active ? 'bold' : 'normal');
+      doc.setTextColor(...(active ? TIER_COLOR[t] : [148, 163, 184]));
+      doc.text(TIER_LABEL_SHORT[t], x + segW / 2, y, { align: 'center' });
+    });
+    y += 9;
+
+    doc.setFontSize(9.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...riskColor);
+    const verdictLines = doc.splitTextToSize(report.verdict, CONTENT_W);
+    doc.text(verdictLines, MARGIN, y); y += verdictLines.length * 5 + 10;
+
+    // ── Informations ────────────────────────────────────────────
+    doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.setTextColor(15, 23, 42);
+    doc.text('Informations', MARGIN, y); y += 7;
     [['Localisation', analyse.localisation], ['Prix', analyse.prix ? `${analyse.prix} €/${analyse.duree_prix || 'mois'}` : '—'],
      ['Propriétaire', analyse.proprietaire], ['URL', analyse.url]].forEach(([k, v]) => {
       if (!v) return;
-      doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(100, 116, 139);
-      doc.text(k + ' :', 14, y);
+      doc.setFontSize(9.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(100, 116, 139);
+      doc.text(k + ' :', MARGIN, y);
       doc.setFont('helvetica', 'normal'); doc.setTextColor(15, 23, 42);
-      doc.text(String(v).slice(0, 80), 48, y); y += 6;
+      doc.text(String(v).slice(0, 90), MARGIN + 32, y); y += 5.5;
     });
+    y += 6;
 
-    y += 4; doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 41, 59);
-    doc.text('Verdict', 14, y); y += 6;
-    doc.setFontSize(9.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(71, 85, 105);
-    const verdictLines = doc.splitTextToSize(report.verdict, 182);
-    doc.text(verdictLines, 14, y); y += verdictLines.length * 5 + 8;
-
+    // ── Alertes ─────────────────────────────────────────────────
     if (report.resumeAlertes.length > 0) {
-      doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 41, 59);
-      doc.text('Ce qui a retenu notre attention', 14, y); y += 6;
-      doc.setFontSize(9.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(71, 85, 105);
+      doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.setTextColor(15, 23, 42);
+      doc.text('Ce qui a retenu notre attention', MARGIN, y); y += 7;
       report.resumeAlertes.forEach(txt => {
-        const lines = doc.splitTextToSize('•  ' + txt, 182);
-        doc.text(lines, 14, y); y += lines.length * 5 + 2;
+        const lines = doc.splitTextToSize(txt, CONTENT_W - 10);
+        const h = lines.length * 4.4 + 5;
+        y = ensureSpace(h, y);
+        doc.setFillColor(254, 242, 242);
+        doc.roundedRect(MARGIN, y - 4, CONTENT_W, h, 2, 2, 'F');
+        doc.setFillColor(220, 38, 38);
+        doc.circle(MARGIN + 5.5, y + 0.5, 1.1, 'F');
+        doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(51, 65, 85);
+        doc.text(lines, MARGIN + 10, y); y += h + 3;
       });
-      y += 4;
+      y += 3;
     }
 
-    doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 41, 59);
-    doc.text('Analyse par catégories', 14, y); y += 4;
+    // ── Analyse par catégories (cartes) ─────────────────────────
+    y = ensureSpace(14, y);
+    doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.setTextColor(15, 23, 42);
+    doc.text('Analyse par catégories', MARGIN, y); y += 8;
 
-    autoTable(doc, {
-      startY: y,
-      head: [['Catégorie', 'Statut', 'Lecture']],
-      body: report.familles.map(f => [f.titre, STATUT_LABEL[f.statut] || f.statut, f.lecture]),
-      styles: { fontSize: 9, cellPadding: 4 },
-      headStyles: { fillColor: [15, 27, 53], textColor: 255, fontStyle: 'bold' },
-      columnStyles: { 0: { cellWidth: 42 }, 1: { cellWidth: 26 }, 2: { cellWidth: 114 } },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
-      didParseCell: (data) => {
-        if (data.column.index === 1 && data.row.section === 'body') {
-          const st = report.familles[data.row.index]?.statut;
-          if (STATUT_COLOR[st]) { data.cell.styles.textColor = STATUT_COLOR[st]; data.cell.styles.fontStyle = 'bold'; }
-        }
-      },
-      didDrawPage: (data) => { y = data.cursor.y; },
+    report.familles.forEach(f => {
+      const statutLabel = STATUT_LABEL[f.statut] || f.statut;
+      doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+      const pillW = doc.getTextWidth(statutLabel.toUpperCase()) + 7;
+      const lectureLines = doc.splitTextToSize(f.lecture, CONTENT_W - 16);
+      const cardH = 8 + 5.5 + lectureLines.length * 4.2 + 6;
+
+      y = ensureSpace(cardH + 4, y);
+      doc.setFillColor(...(STATUT_BG[f.statut] || STATUT_BG.partiel));
+      doc.roundedRect(MARGIN, y, CONTENT_W, cardH, 3, 3, 'F');
+
+      const innerX = MARGIN + 8, innerY = y + 9;
+      doc.setFontSize(10.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(15, 23, 42);
+      doc.text(f.titre, innerX, innerY);
+
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(MARGIN + CONTENT_W - 8 - pillW, y + 5, pillW, 5.5, 2.5, 2.5, 'F');
+      doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(...(STATUT_COLOR[f.statut] || STATUT_COLOR.partiel));
+      doc.text(statutLabel.toUpperCase(), MARGIN + CONTENT_W - 8 - pillW / 2, y + 8.7, { align: 'center' });
+
+      doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(71, 85, 105);
+      doc.text(lectureLines, innerX, innerY + 6);
+
+      y += cardH + 4;
     });
+    y += 4;
 
-    y += 8;
-    if (y > 250) { doc.addPage(); y = 20; }
-    doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 41, 59);
-    doc.text('Vos prochaines étapes', 14, y); y += 6;
-    doc.setFontSize(9.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(71, 85, 105);
+    // ── Prochaines étapes (panneau navy) ─────────────────────────
+    const stepsLines = report.prochainesEtapes.map(txt => doc.splitTextToSize(txt, CONTENT_W - 26));
+    const stepsH = 12 + stepsLines.reduce((sum, lines) => sum + lines.length * 4.6 + 3, 0) + 4;
+    y = ensureSpace(stepsH, y);
+    doc.setFillColor(...NAVY);
+    doc.roundedRect(MARGIN, y, CONTENT_W, stepsH, 4, 4, 'F');
+
+    doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255);
+    doc.text('Vos prochaines étapes', MARGIN + 8, y + 9);
+
+    let stepY = y + 18;
     report.prochainesEtapes.forEach((txt, i) => {
-      const lines = doc.splitTextToSize(`${i + 1}.  ${txt}`, 182);
-      doc.text(lines, 14, y); y += lines.length * 5 + 2;
+      const lines = stepsLines[i];
+      doc.setFillColor(37, 99, 235);
+      doc.circle(MARGIN + 11.5, stepY - 1.2, 2.6, 'F');
+      doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255);
+      doc.text(String(i + 1), MARGIN + 11.5, stepY + 0.1, { align: 'center' });
+      doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(226, 232, 240);
+      doc.text(lines, MARGIN + 18, stepY);
+      stepY += lines.length * 4.6 + 3;
     });
+    y += stepsH + 8;
 
-    y += 6;
+    // ── Mention ────────────────────────────────────────────────
+    y = ensureSpace(10, y);
     doc.setFontSize(8); doc.setFont('helvetica', 'italic'); doc.setTextColor(148, 163, 184);
-    doc.text(doc.splitTextToSize(report.mention, 182), 14, y);
+    doc.text(doc.splitTextToSize(report.mention, CONTENT_W), MARGIN, y);
 
     const pageCount = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i); doc.setFontSize(8); doc.setTextColor(148, 163, 184); doc.setFont('helvetica', 'normal');
-      doc.text('Seculoca — seculoca.fr · Ce rapport est fourni à titre informatif.', 14, 290);
-      doc.text(`${i}/${pageCount}`, 200, 290, { align: 'right' });
+      doc.text('Seculoca — seculoca.fr · Ce rapport est fourni à titre informatif.', MARGIN, 290);
+      doc.text(`${i}/${pageCount}`, 210 - MARGIN, 290, { align: 'right' });
     }
     doc.save(`seculoca-${id.slice(0, 8)}.pdf`);
   };
