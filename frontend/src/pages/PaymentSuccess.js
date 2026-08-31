@@ -27,7 +27,7 @@ export default function PaymentSuccess() {
       </h1>
       <p className="text-slate-500 text-sm leading-relaxed mb-8">
         {isSubscription
-          ? "Votre abonnement est actif. Profitez d'analyses illimitées sans vous soucier d'un compteur."
+          ? "Votre abonnement est actif. Retrouvez votre quota d'analyses et son suivi depuis votre tableau de bord."
           : "Vos crédits ont été ajoutés à votre compte. Vous pouvez maintenant analyser des annonces."}
       </p>
       <div className="flex flex-col gap-3">
