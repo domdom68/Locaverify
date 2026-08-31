@@ -2,9 +2,44 @@ const express = require('express');
 const router = express.Router();
 const Stripe = require('stripe');
 const { supabase } = require('../middleware/auth');
-const { activatePlan, addCredits } = require('../lib/subscriptionManager');
+const { activatePlan, addCredits, PLANS } = require('../lib/subscriptionManager');
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+/**
+ * Facture le dépassement du forfait Pro (au-delà des 1000 analyses
+ * incluses) avant que le compteur mensuel ne soit remis à zéro par
+ * activatePlan(). On crée un Stripe "invoice item" en attente sur le
+ * client : Stripe l'inclut automatiquement dans SA PROCHAINE facture
+ * (pas celle qui vient d'être payée) — donc le dépassement d'un mois
+ * apparaît sur la facture du mois suivant. C'est un décalage volontaire
+ * et documenté (plus simple à fiabiliser qu'un abonnement à l'usage
+ * Stripe complet), à expliquer à Dominique / aux clients si besoin.
+ */
+async function invoiceOverageIfAny({ userId, plan, stripeCustomerId }) {
+  if (plan !== 'pro') return;
+  const planInfo = PLANS.pro;
+  if (!planInfo.fairUse || !planInfo.overagePricePerAnalysis) return;
+
+  const { data: profile } = await supabase
+    .from('profiles').select('analyses_this_year').eq('id', userId).single();
+  const usage = profile?.analyses_this_year || 0;
+  const overage = Math.max(0, usage - planInfo.fairUse);
+  if (overage <= 0 || !stripeCustomerId) return;
+
+  const amountCents = Math.round(overage * planInfo.overagePricePerAnalysis * 100);
+  try {
+    await stripe.invoiceItems.create({
+      customer: stripeCustomerId,
+      amount: amountCents,
+      currency: 'eur',
+      description: `Dépassement forfait Pro — ${overage} analyse(s) au-delà des 1000 incluses (0,69 €/analyse)`,
+    });
+    console.log(`💳 Dépassement Pro facturé pour user ${userId} : ${overage} analyses, ${(amountCents / 100).toFixed(2)} €`);
+  } catch (err) {
+    console.error(`❌ Échec facturation dépassement Pro pour user ${userId} :`, err.message);
+  }
+}
 
 /**
  * Retrouve ou crée le compte Supabase associé à un achat en invité
@@ -143,6 +178,9 @@ router.post('/', async (req, res) => {
         const plan = sub.metadata?.plan;
 
         if (userId && plan) {
+          // Facturer un éventuel dépassement Pro AVANT qu'activatePlan()
+          // ne remette le compteur mensuel à zéro pour le nouveau cycle.
+          await invoiceOverageIfAny({ userId, plan, stripeCustomerId: sub.customer });
           await activatePlan(userId, plan);
           console.log(`🔄 Plan ${plan} renewed for user ${userId}`);
         }
