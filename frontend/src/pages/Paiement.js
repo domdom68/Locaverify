@@ -1,460 +1,333 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import demoPreview from '../assets/demo-preview.png';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../hooks/useAuth';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://determined-nourishment-production-ea9c.up.railway.app';
+const API = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
-export default function Landing() {
-  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
-  const [contactForm, setContactForm] = useState({
-    prenom: '', nom: '', email: '', mobile: '', sujet: '', message: ''
-  });
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [error, setError] = useState('');
+// ── Pricing data ──────────────────────────────────────────────────
+const FREE_PACK = {
+  id: null, name: 'Découverte', price: 'Gratuit',
+  badge: '✦ Offert', badgeColor: 'bg-green-100 text-green-700',
+  highlight: false, isSubscription: false, isFree: true,
+  description: 'Pour découvrir le service',
+  features: ['5 analyses incluses à l\'inscription', 'Rapport PDF téléchargeable', 'Vérifier un paiement demandé', 'Sans carte bancaire'],
+  cta: 'Déjà activé ✓', ctaDisabled: true,
+};
 
-  const handleContact = async () => {
-    const { prenom, email, sujet, message } = contactForm;
-    if (!prenom || !email || !sujet || !message) {
-      setError('Merci de remplir tous les champs obligatoires (*)');
-      return;
-    }
-    setSending(true);
-    setError('');
-    try {
-      const res = await fetch(`${API_URL}/api/contact`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(contactForm)
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setSent(true);
-        setContactForm({ prenom: '', nom: '', email: '', mobile: '', sujet: '', message: '' });
-      } else {
-        setError(data.error || 'Erreur lors de l\'envoi.');
-      }
-    } catch (e) {
-      setError('Erreur de connexion. Veuillez réessayer.');
-    } finally {
-      setSending(false);
-    }
+const PACK_VACANCES = {
+  id: 'pack_vacances', name: 'Pack Vacances', price: '6,99 €',
+  badge: 'Sans engagement', badgeColor: 'bg-amber-100 text-amber-700',
+  highlight: false, isSubscription: false,
+  description: 'Pour une recherche ponctuelle (vacances d\'été, ski...)',
+  features: ['10 analyses', 'Valable 60 jours', 'Rapport complet', 'Vérifier un paiement demandé', 'Aucun compte requis pour acheter'],
+  cta: 'Acheter — 6,99 €',
+};
+
+const PRODUCTS = [
+  {
+    id: 'essentiel', name: 'Essentiel', price: '9,99 €',
+    badge: 'Pour débuter', badgeColor: 'bg-slate-100 text-slate-600',
+    highlight: false, isSubscription: true,
+    description: 'Pour une recherche régulière',
+    features: ['20 analyses / mois', 'Rapport complet', 'Vérifier un paiement demandé', 'Historique des analyses'],
+    cta: 'Choisir — 9,99 €/mois',
+  },
+  {
+    id: 'max', name: 'Max', price: '29,99 €',
+    badge: 'Le plus populaire', badgeColor: 'bg-blue-100 text-blue-700',
+    highlight: true, isSubscription: true,
+    description: 'Pour les particuliers actifs',
+    features: ['60 analyses / mois', 'Rapport complet', 'Vérifier un paiement demandé', 'Historique des analyses', 'Export PDF'],
+    cta: 'Choisir — 29,99 €/mois',
+  },
+  {
+    id: 'pro', name: 'Pro', price: '499 €',
+    badge: 'Professionnels', badgeColor: 'bg-purple-100 text-purple-700',
+    highlight: false, isSubscription: true,
+    description: 'Agents, juristes, associations',
+    features: ['1000 analyses / mois incluses', 'Au-delà : 0,69 €/analyse, sans coupure', 'Rapport complet', 'Vérifier un paiement demandé', 'Historique des analyses', 'Export PDF', 'API disponible sur demande'],
+    cta: 'Choisir — 499 €/mois',
+  },
+];
+
+// ── Plan badge component ─────────────────────────────────────────
+function CurrentPlanBanner({ profile, planState }) {
+  const navigate = useNavigate();
+  if (!profile || profile.plan === 'free') return null;
+
+  const isSubscription = ['essentiel', 'max', 'pro'].includes(profile.plan);
+  const planLabel = { essentiel: 'Essentiel', max: 'Max', pro: 'Pro' }[profile.plan] || profile.plan;
+  const expiresAt = profile.plan_expires_at
+    ? new Date(profile.plan_expires_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+    : null;
+
+  const handlePortal = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch(`${API}/api/payment/portal`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    const data = await res.json();
+    if (data.url) window.location.href = data.url;
   };
 
   return (
-    <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap');
-        :root {
-          --blue-900: #0B1F4A; --blue-700: #1A3A7C; --blue-500: #1E5FD4;
-          --blue-300: #4D8AF0; --blue-100: #E8F0FD; --teal: #00BFA5;
-          --sand: #F7F8FC; --white: #FFFFFF; --ink: #0D1B2A;
-          --muted: #5A6A80; --border: #DDE3EE; --danger: #E53935;
-          --warn: #F57C00; --ok: #2E7D32; --radius: 12px; --radius-sm: 6px;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Inter', sans-serif; }
-        h1,h2,h3,h4 { font-family: 'Syne', sans-serif; line-height: 1.3; }
-        .landing-nav {
-          position: sticky; top: 0; z-index: 100;
-          background: rgba(255,255,255,0.95); backdrop-filter: blur(8px);
-          border-bottom: 1px solid var(--border);
-          padding: 0 5%; display: flex; align-items: center;
-          justify-content: space-between; height: 64px;
-        }
-        .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
-        .logo-icon {
-          width: 38px; height: 38px; background: var(--blue-500);
-          border-radius: 10px; display: flex; align-items: center; justify-content: center;
-        }
-        .logo-text { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.3rem; color: var(--blue-900); }
-        .logo-text span { color: var(--blue-500); }
-        .nav-links { display: flex; align-items: center; gap: 28px; list-style: none; }
-        .nav-links a { text-decoration: none; color: var(--muted); font-size: 0.9rem; font-weight: 500; }
-        .btn {
-          display: inline-flex; align-items: center; gap: 8px;
-          padding: 10px 22px; border-radius: var(--radius-sm);
-          font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.9rem;
-          cursor: pointer; text-decoration: none; transition: all 0.2s; border: none;
-        }
-        .btn-primary { background: var(--blue-500); color: white; }
-        .btn-primary:hover { background: var(--blue-700); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(30,95,212,0.35); }
-        .btn-outline { background: transparent; color: var(--blue-500); border: 1.5px solid var(--blue-300); }
-        .btn-large { padding: 14px 32px; font-size: 1rem; }
-        .hero {
-          background: linear-gradient(160deg, var(--blue-900) 0%, var(--blue-700) 60%, #1a4a8a 100%);
-          color: white; padding: 96px 5% 80px; position: relative; overflow: hidden;
-        }
-        .hero-grid { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
-        .hero-badge {
-          display: inline-flex; align-items: center; gap: 8px;
-          background: rgba(0,191,165,0.15); border: 1px solid rgba(0,191,165,0.4);
-          color: var(--teal); padding: 6px 14px; border-radius: 100px;
-          font-size: 0.8rem; font-weight: 600; margin-bottom: 24px;
-        }
-        .hero h1 { font-size: clamp(2rem,4vw,3rem); font-weight: 800; color: white; margin-bottom: 20px; letter-spacing: -1px; }
-        .hero h1 em { font-style: normal; color: var(--teal); }
-        .hero p { font-size: 1.1rem; color: rgba(255,255,255,0.75); margin-bottom: 36px; max-width: 480px; line-height: 1.7; }
-        .hero-cta { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
-        .hero-trust { margin-top: 40px; display: flex; gap: 24px; flex-wrap: wrap; }
-        .trust-item { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: rgba(255,255,255,0.6); }
-        .hero-card {
-          background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15);
-          border-radius: 20px; padding: 32px; backdrop-filter: blur(12px);
-        }
-        .counter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
-        .counter-box { background: rgba(255,255,255,0.06); border-radius: var(--radius); padding: 20px; text-align: center; }
-        .counter-number { font-family: 'Syne', sans-serif; font-size: 2rem; font-weight: 800; color: white; display: block; }
-        .counter-number span { color: var(--teal); }
-        .counter-label { font-size: 0.75rem; color: rgba(255,255,255,0.55); margin-top: 4px; display: block; }
-        .stats-band { background: var(--sand); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 40px 5%; }
-        .stats-inner { max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-around; flex-wrap: wrap; gap: 24px; }
-        .stat { text-align: center; }
-        .stat-num { font-family: 'Syne', sans-serif; font-size: 2.4rem; font-weight: 800; color: var(--blue-500); display: block; line-height: 1; }
-        .stat-desc { font-size: 0.85rem; color: var(--muted); margin-top: 6px; }
-        section { padding: 80px 5%; }
-        .section-inner { max-width: 1100px; margin: 0 auto; }
-        .section-eyebrow { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--blue-500); font-weight: 600; margin-bottom: 12px; }
-        .section-title { font-size: clamp(1.6rem,3vw,2.2rem); font-weight: 800; color: var(--blue-900); margin-bottom: 16px; letter-spacing: -0.5px; line-height: 1.3; }
-        .section-sub { font-size: 1rem; color: var(--muted); max-width: 560px; line-height: 1.7; margin-bottom: 52px; }
-        .how-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 32px; }
-        .step-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 32px 28px; transition: box-shadow 0.2s, transform 0.2s; }
-        .step-card:hover { box-shadow: 0 8px 32px rgba(30,95,212,0.1); transform: translateY(-3px); }
-        .step-num { font-family: 'Syne', sans-serif; font-size: 3rem; font-weight: 800; color: var(--blue-500); line-height: 1; margin-bottom: 16px; }
-        .step-icon { width: 48px; height: 48px; background: var(--blue-100); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; font-size: 1.4rem; }
-        .step-card h3 { font-size: 1.2rem; font-weight: 700; color: var(--blue-500); margin-bottom: 10px; }
-        .step-card p { font-size: 0.88rem; color: var(--muted); line-height: 1.6; }
-        .demo-preview-section { background: var(--sand); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
-        .demo-preview-grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 48px; align-items: center; }
-        .demo-preview-img-wrap { border-radius: 16px; overflow: hidden; box-shadow: 0 12px 40px rgba(11,31,74,0.15); border: 1px solid var(--border); }
-        .demo-preview-img-wrap img { display: block; width: 100%; height: auto; }
-       @media (max-width: 900px) { .demo-preview-grid { grid-template-columns: 1fr; } }
-        .pricing-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 20px; }
-        .plan-card { border: 1.5px solid var(--border); border-radius: 16px; padding: 28px 24px; background: white; position: relative; transition: box-shadow 0.2s, transform 0.2s; }
-        .plan-card:hover { box-shadow: 0 8px 32px rgba(30,95,212,0.1); transform: translateY(-3px); }
-        .plan-card.featured { border-color: var(--blue-500); box-shadow: 0 0 0 4px var(--blue-100); }
-        .plan-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--blue-500); color: white; font-size: 0.72rem; font-weight: 700; padding: 4px 14px; border-radius: 100px; white-space: nowrap; }
-        .plan-name { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; color: var(--blue-900); margin-bottom: 8px; }
-        .plan-price { font-family: 'Syne', sans-serif; font-size: 2rem; font-weight: 800; color: var(--blue-900); line-height: 1; margin-bottom: 4px; }
-        .plan-period { font-size: 0.78rem; color: var(--muted); margin-bottom: 20px; }
-        .plan-divider { height: 1px; background: var(--border); margin: 20px 0; }
-        .plan-features { list-style: none; display: flex; flex-direction: column; gap: 9px; margin-bottom: 24px; }
-        .plan-features li { display: flex; align-items: flex-start; gap: 8px; font-size: 0.82rem; color: var(--ink); line-height: 1.4; }
-        .check { color: var(--teal); flex-shrink: 0; }
-        .cross { color: #CCC; flex-shrink: 0; }
-        .faq-section { background: var(--sand); }
-        .faq-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-        .faq-item { background: white; border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
-        .faq-q { font-family: 'Syne', sans-serif; font-size: 0.95rem; font-weight: 700; color: var(--blue-500); margin-bottom: 10px; }
-        .faq-a { font-size: 0.87rem; color: var(--muted); line-height: 1.65; }
-        .trust-band { background: var(--blue-900); padding: 48px 5%; color: white; }
-        .trust-band-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 32px; }
-        .trust-badges { display: flex; gap: 16px; flex-wrap: wrap; }
-        .trust-badge { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 10px 16px; font-size: 0.82rem; font-weight: 600; color: rgba(255,255,255,0.85); }
-        .cta-section { background: linear-gradient(135deg,var(--blue-500),var(--blue-900)); color: white; text-align: center; padding: 96px 5%; }
-        .cta-section h2 { font-size: clamp(1.8rem,4vw,2.8rem); font-weight: 800; margin-bottom: 16px; }
-        .cta-section p { font-size: 1.05rem; color: rgba(255,255,255,0.75); margin-bottom: 36px; max-width: 480px; margin-left: auto; margin-right: auto; }
-        .btn-white { background: white; color: var(--blue-700); font-weight: 700; }
-        .contact-section { background: var(--sand); }
-        .contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; }
-        .contact-form { background: white; border: 1px solid var(--border); border-radius: 20px; padding: 36px; box-shadow: 0 4px 24px rgba(11,31,74,0.06); }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-        .form-group { margin-bottom: 16px; }
-        .form-label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--blue-900); margin-bottom: 6px; }
-        .form-input { width: 100%; padding: 11px 14px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-family: 'Inter', sans-serif; font-size: 0.88rem; outline: none; }
-        .form-input:focus { border-color: var(--blue-500); }
-        footer { background: var(--ink); color: rgba(255,255,255,0.5); padding: 40px 5%; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; font-size: 0.82rem; }
-        footer a { color: rgba(255,255,255,0.5); text-decoration: none; }
-        .footer-links { display: flex; gap: 20px; }
-        @media (max-width: 900px) {
-          .hero-grid, .contact-grid { grid-template-columns: 1fr; }
-          .how-grid { grid-template-columns: 1fr; }
-          .pricing-grid { grid-template-columns: 1fr 1fr; }
-          .faq-grid { grid-template-columns: 1fr; }
-          .hero-card { display: none; }
-        }
-        @media (max-width: 600px) {
-          .pricing-grid { grid-template-columns: 1fr; }
-          .nav-links { display: none; }
-          .landing-nav { padding: 0 4%; }
-          .logo-text { font-size: 1.05rem; }
-          .logo-icon { width: 32px; height: 32px; }
-          .btn.btn-outline { padding: 8px 14px; font-size: 0.82rem; white-space: nowrap; }
-        }
-      `}</style>
-
-      {/* NAV */}
-      <nav className="landing-nav">
-        <Link to="/" className="logo" onClick={scrollToTop}>
-          <div className="logo-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/></svg>
-          </div>
-          <span className="logo-text">Secu<span>loca</span></span>
-        </Link>
-        <ul className="nav-links">
-          <li><a href="#comment">Comment ça marche</a></li>
-          <li><a href="#tarifs">Tarifs</a></li>
-          <li><a href="#faq">FAQ</a></li>
-          <li><a href="#contact">Contact</a></li>
-          <li><a href="https://blog.seculoca.fr" target="_blank" rel="noopener noreferrer">Blog</a></li>
-          <li><a href="https://www.youtube.com/channel/UCKLTKXj-LNpGwsdUXZtv3NA" target="_blank" rel="noopener noreferrer">YouTube</a></li>
-        </ul>
-        <div style={{display:'flex',gap:'10px'}}>
-          <Link to="/connexion" className="btn btn-outline">Se connecter</Link>
+    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 bg-blue-50 border border-blue-200 rounded-2xl mb-8">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white text-lg flex-shrink-0">
+          {profile.plan === 'pro' ? '⭐' : '✓'}
         </div>
-      </nav>
-
-      {/* HERO */}
-      <section className="hero">
-        <div className="hero-grid">
-          <div>
-            <div className="hero-badge">✦ Intelligence artificielle · Détection en temps réel</div>
-            <h1>Vérifiez avant<br/><em>de louer</em></h1>
-            <p><strong>Seculoca</strong> analyse vos annonces de location en quelques secondes et détecte les signaux potentiels d'arnaque.</p>
-            <div className="hero-cta">
-              <Link to="/connexion?mode=register" className="btn btn-primary btn-large">✓ Analyser une annonce gratuitement</Link>
-              <Link to="/demo" className="btn btn-outline" style={{color:'white',borderColor:'rgba(255,255,255,0.3)'}}>Voir la démo</Link>
-            </div>
-            <div className="hero-trust">
-              <div className="trust-item">🛡️ Conforme RGPD</div>
-              <div className="trust-item">🔒 Données chiffrées</div>
-              <div className="trust-item">⚡ Résultat en moins de 30 secondes</div>
-            </div>
-          </div>
-          <div className="hero-card">
-            <div className="counter-grid">
-              <div className="counter-box"><span className="counter-number">1 / <span>3</span></span><span className="counter-label">Candidats locataires confrontés à une arnaque</span></div>
-              <div className="counter-box"><span className="counter-number"><span>12'000</span>€</span><span className="counter-label">Perdus en moyenne par victime</span></div>
-              <div className="counter-box"><span className="counter-number"><span>94</span>%</span><span className="counter-label">Précision de détection</span></div>
-              <div className="counter-box"><span className="counter-number"><span>30</span> sec</span><span className="counter-label">Pour obtenir votre score</span></div>
-            </div>
-          </div>
+        <div>
+          <p className="font-semibold text-blue-900 text-sm">
+            Abonnement {planLabel} actif
+          </p>
+          <p className="text-blue-700 text-xs mt-0.5">
+            {isSubscription
+              ? `${planState?.usageThisYear || 0} analyses utilisées ce mois-ci · Renouvellement ${expiresAt || 'automatique'}`
+              : `${profile.credits || 0} crédits restants`}
+          </p>
+          {profile.plan === 'pro' && planState?.overage > 0 && (
+            <p className="text-amber-700 text-xs mt-1 font-medium">
+              {planState.overage} analyse{planState.overage > 1 ? 's' : ''} au-delà du forfait ce mois-ci — facturée{planState.overage > 1 ? 's' : ''} {planState.overagePricePerAnalysis?.toFixed(2)} €/analyse sur votre prochaine facture.
+            </p>
+          )}
         </div>
-      </section>
+      </div>
+      {isSubscription && (
+        <button onClick={handlePortal}
+          className="flex-shrink-0 px-4 py-2 rounded-xl border border-blue-300 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors">
+          Gérer mon abonnement →
+        </button>
+      )}
+    </div>
+  );
+}
 
-   
+// ── Main Paiement page ───────────────────────────────────────────
+export default function Paiement() {
+  const { profile } = useAuth();
+  const [loadingProduct, setLoadingProduct] = useState(null);
+  const [planState, setPlanState] = useState(null);
 
-      {/* HOW IT WORKS */}
-      <section id="comment">
-        <div className="section-inner">
-          <div className="section-eyebrow">Fonctionnement</div>
-          <h2 className="section-title">Trois étapes simples, rapides et pertinentes.</h2>
-          <p className="section-sub">Pas besoin d'être expert. Copiez le texte de l'annonce, notre IA fait le reste.</p>
-          <div className="how-grid">
-            <div className="step-card"><div className="step-num">01</div><div className="step-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--blue-500)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1"/><line x1="9" y1="10" x2="15" y2="10"/><line x1="9" y1="14" x2="15" y2="14"/><line x1="9" y1="18" x2="12" y2="18"/></svg></div><h3>Copiez l'annonce</h3><p>Il vous suffit de copier l'URL ainsi que le texte de l'annonce depuis n'importe quelle plateforme — Leboncoin, SeLoger, PAP, Facebook Marketplace… — et de lancer l'analyse.</p></div>
-            <div className="step-card"><div className="step-num">02</div><div className="step-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--blue-500)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><line x1="15.3" y1="15.3" x2="20" y2="20"/><path d="M8 10.5h5M10.5 8v5"/></svg></div><h3>L'IA analyse</h3><p>Notre modèle examine plus de 10 signaux d'alerte comme les prix, les formulations suspectes, les demandes inhabituelles, des photos reprises d'autres plateformes… et bien d'autres encore.</p></div>
-            <div className="step-card"><div className="step-num">03</div><div className="step-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--blue-500)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15a8 8 0 0 1 16 0"/><line x1="12" y1="15" x2="15.5" y2="10.5"/><circle cx="12" cy="15" r="1"/></svg></div><h3>Recevez votre score</h3><p>Un score de risque clair de 0 à 100, avec des signaux détectés et documentés.</p></div>
+  useEffect(() => {
+    async function loadPlan() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const res = await fetch(`${API}/api/user/plan`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json();
+      setPlanState(data);
+    }
+    loadPlan();
+  }, []);
+
+  const handleCheckout = async (productId) => {
+    setLoadingProduct(productId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers = { 'Content-Type': 'application/json' };
+      if (session) headers.Authorization = `Bearer ${session.access_token}`;
+      const res = await fetch(`${API}/api/payment/create-checkout`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ productId }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+      else throw new Error(data.error);
+    } catch (err) {
+      alert('Erreur : ' + err.message);
+    }
+    setLoadingProduct(null);
+  };
+
+  return (
+    <div className="animate-fadeIn max-w-5xl mx-auto">
+      {/* Header */}
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-serif text-slate-900 mb-2" style={{ fontFamily: "'DM Serif Display', serif" }}>
+          Choisissez votre formule
+        </h1>
+        <p className="text-slate-500 text-sm">Commencez gratuitement. Passez à un forfait supérieur quand vous en avez besoin.</p>
+      </div>
+
+      {/* Current plan banner */}
+      <CurrentPlanBanner profile={profile} planState={planState}/>
+
+      {/* Free pack reminder */}
+      <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl mb-6 text-sm text-green-800">
+        <span className="text-lg flex-shrink-0">🎁</span>
+        <span>
+          <strong>Pack Découverte</strong> — 5 analyses gratuites offertes à l'inscription.
+          {profile?.credits > 0 && profile?.plan === 'free'
+            ? <> Il vous reste <strong>{profile.credits} crédit{profile.credits > 1 ? 's' : ''}</strong>.</>
+            : null}
+        </span>
+        <span className="ml-auto flex-shrink-0 px-3 py-1 rounded-full bg-green-200 text-green-800 text-xs font-semibold">Déjà activé ✓</span>
+      </div>
+
+      {/* Pack Vacances — achat ponctuel, sans compte requis */}
+      <div className="bg-white rounded-2xl border-2 border-amber-200 p-6 mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-5">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-2">
+            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${PACK_VACANCES.badgeColor}`}>
+              {PACK_VACANCES.badge}
+            </span>
           </div>
-        </div>      </section>
-      {/* APERÇU DU PRODUIT */}
-      <section className="demo-preview-section">
-        <div className="section-inner demo-preview-grid">
-          <div>
-            <div className="section-eyebrow">Aperçu</div>
-            <h2 className="section-title">Voyez le résultat avant de vous décider</h2>
-            <p className="section-sub" style={{marginBottom:'28px'}}>Un score de risque clair, des signaux détaillés et une recommandation concrète — exactement ce que vous recevez après chaque analyse.</p>
-            <Link to="/demo" className="btn btn-primary btn-large">Essayer la démo interactive →</Link>
-          </div>
-          <div className="demo-preview-img-wrap">
-            <img src={demoPreview} alt="Aperçu d'un rapport d'analyse Seculoca" />
-          </div>
+          <h2 className="font-serif text-xl text-slate-900 mb-1" style={{ fontFamily: "'DM Serif Display', serif" }}>
+            {PACK_VACANCES.name} — {PACK_VACANCES.price}
+          </h2>
+          <p className="text-sm text-slate-500 mb-3">{PACK_VACANCES.description}</p>
+          <ul className="flex flex-wrap gap-x-5 gap-y-1.5">
+            {PACK_VACANCES.features.map((f) => (
+              <li key={f} className="flex items-center gap-1.5 text-sm text-slate-600">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-amber-500 flex-shrink-0">
+                  <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.5"/>
+                  <path d="M4.5 7L6.5 9L9.5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                {f}
+              </li>
+            ))}
+          </ul>
         </div>
-      </section>
+        <button
+          onClick={() => handleCheckout(PACK_VACANCES.id)}
+          disabled={loadingProduct !== null}
+          className="w-full sm:w-auto flex-shrink-0 px-6 py-3 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60 bg-amber-500 text-white hover:bg-amber-600">
+          {loadingProduct === PACK_VACANCES.id
+            ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>
+            : <>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <rect x="1" y="4" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M1 8H15" stroke="currentColor" strokeWidth="1.5"/>
+              </svg>
+              {PACK_VACANCES.cta}
+            </>}
+        </button>
+      </div>
 
-      {/* PRICING */}
-      <section id="tarifs">
-        <div className="section-inner">
-          <div className="section-eyebrow">Tarifs</div>
-          <h2 className="section-title">Simple, transparent, sans engagement</h2>
-          <p className="section-sub">Commencez gratuitement. Passez au niveau supérieur si vous en avez besoin.</p>
+      {/* Pricing grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-10">
+        {PRODUCTS.map((p) => (
+          <div key={p.id}
+            className={`bg-white rounded-2xl flex flex-col relative transition-shadow hover:shadow-lg ${
+              p.highlight ? 'border-2 border-blue-500 shadow-md shadow-blue-100' : 'border border-slate-200'
+            }`}>
 
-          {/* Pack Vacances — achat ponctuel, pas d'abonnement, pas de compte requis */}
-          <div className="plan-card" style={{borderColor:'#fcd34d', marginBottom:'32px', display:'flex', flexWrap:'wrap', alignItems:'center', gap:'20px', textAlign:'left'}}>
-            <div style={{flex:'1 1 320px'}}>
-              <span style={{display:'inline-block', background:'#fef3c7', color:'#b45309', fontSize:'0.72rem', fontWeight:700, padding:'4px 12px', borderRadius:'100px', marginBottom:'10px'}}>Sans engagement</span>
-              <div className="plan-name" style={{marginBottom:'2px'}}>Pack Vacances — 6,99 €</div>
-              <p style={{margin:'4px 0 10px', color:'var(--text-muted, #64748b)', fontSize:'0.92rem'}}>Pour une recherche ponctuelle (vacances d'été, ski...)</p>
-              <ul className="plan-features" style={{display:'flex', flexWrap:'wrap', gap:'4px 20px', border:'none', padding:0, margin:0}}>
-                <li><span className="check">✓</span> 10 analyses</li>
-                <li><span className="check">✓</span> Valable 60 jours</li>
-                <li><span className="check">✓</span> Rapport complet</li>
-                <li><span className="check">✓</span> Aucun compte requis pour acheter</li>
-              </ul>
+            {/* Badge */}
+            <div className="px-6 pt-6 pb-0">
+              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${p.badgeColor}`}>
+                {p.badge}
+              </span>
             </div>
-            <Link to="/paiement" className="btn btn-primary" style={{flexShrink:0, background:'#f59e0b'}}>Acheter — 6,99 €</Link>
-          </div>
 
-          <div className="pricing-grid">
-            <div className="plan-card">
-              <div className="plan-name">Découverte</div>
-             <div className="plan-price">0 <sup>€</sup></div>
-              <div className="plan-period">&nbsp;</div>
-              <div className="plan-divider"/>
-              <ul className="plan-features">
-                <li><span className="check">✓</span> 5 analyses</li>
-                <li><span className="check">✓</span> Score de risque global</li>
-                <li><span className="check">✓</span> Tous les signaux détectés</li>
-                <li><span className="check">✓</span> Rapport complet</li>
-                <li><span className="check">✓</span> Vérifier un paiement demandé</li>
-                <li><span className="cross">✗</span> Historique</li>
-              </ul>
-              <Link to="/connexion?mode=register" className="btn btn-outline" style={{width:'100%',justifyContent:'center'}}>Commencer</Link>
+            {/* Header */}
+            <div className="px-6 pt-4 pb-5 border-b border-slate-100">
+              <h2 className="font-serif text-xl text-slate-900 mb-1" style={{ fontFamily: "'DM Serif Display', serif" }}>
+                {p.name}
+              </h2>
+              <p className="text-xs text-slate-400 mb-3">{p.description}</p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-4xl font-bold text-slate-900">{p.price}</span>
+                {p.isSubscription && <span className="text-slate-400 text-sm">/mois</span>}
+              </div>
+              {p.perUnit && <p className="text-xs text-slate-400 mt-1">{p.perUnit}</p>}
             </div>
-            <div className="plan-card">
-              <div className="plan-name">Essentiel</div>
-              <div className="plan-price">9,99 <sup>€</sup></div>
-              <div className="plan-period">par mois</div>
-              <div className="plan-divider"/>
-              <ul className="plan-features">
-                <li><span className="check">✓</span> 20 analyses / mois</li>
-                <li><span className="check">✓</span> Score de risque global</li>
-                <li><span className="check">✓</span> Rapport complet</li>
-                <li><span className="check">✓</span> Vérifier un paiement demandé</li>
-                <li><span className="check">✓</span> Historique des analyses</li>
-                <li><span className="cross">✗</span> Export PDF</li>
-              </ul>
-              <Link to="/connexion?mode=register" className="btn btn-outline" style={{width:'100%',justifyContent:'center'}}>Choisir</Link>
-            </div>
-            <div className="plan-card featured">
-              <div className="plan-badge">Le plus populaire</div>
-              <div className="plan-name">Max</div>
-              <div className="plan-price">29,99 <sup>€</sup></div>
-              <div className="plan-period">par mois</div>
-              <div className="plan-divider"/>
-              <ul className="plan-features">
-                <li><span className="check">✓</span> 60 analyses / mois</li>
-                <li><span className="check">✓</span> Score de risque global</li>
-                <li><span className="check">✓</span> Rapport complet</li>
-                <li><span className="check">✓</span> Vérifier un paiement demandé</li>
-                <li><span className="check">✓</span> Historique des analyses</li>
-                <li><span className="check">✓</span> Export PDF</li>
-              </ul>
-              <Link to="/connexion?mode=register" className="btn btn-primary" style={{width:'100%',justifyContent:'center'}}>Choisir</Link>
-            </div>
-            <div className="plan-card">
-              <div className="plan-name">Pro</div>
-             <div className="plan-price">499 <sup>€</sup></div>
-              <div className="plan-period">par mois</div>
-              <div className="plan-divider"/>
-              <ul className="plan-features">
-                <li><span className="check">✓</span> 1000 analyses / mois incluses</li>
-                <li><span className="check">✓</span> Au-delà : 0,69 € / analyse, sans coupure</li>
-                <li><span className="check">✓</span> Score de risque global</li>
-                <li><span className="check">✓</span> Rapport complet</li>
-                <li><span className="check">✓</span> Vérifier un paiement demandé</li>
-                <li><span className="check">✓</span> Historique des analyses</li>
-                <li><span className="check">✓</span> Export PDF</li>
-                <li><span className="check">✓</span> Support prioritaire</li>
-              </ul>
-              <p style={{fontSize:'0.78rem', color:'var(--text-muted, #64748b)', margin:'10px 0 0', textAlign:'center'}}>Intégration API disponible sur demande</p>
-              <Link to="/connexion?mode=register" className="btn btn-outline" style={{width:'100%',justifyContent:'center', marginTop:'10px'}}>Choisir</Link>
+
+            {/* Features */}
+            <ul className="px-6 py-5 space-y-2.5 flex-1">
+              {p.features.map((f) => (
+                <li key={f} className="flex items-center gap-2 text-sm text-slate-600">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-green-500 flex-shrink-0">
+                    <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.5"/>
+                    <path d="M4.5 7L6.5 9L9.5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  {f}
+                </li>
+              ))}
+            </ul>
+
+            {/* Footnote */}
+            {p.footnote && (
+              <p className="px-6 pb-2 text-xs text-slate-400">{p.footnote}</p>
+            )}
+
+            {/* CTA */}
+            <div className="px-6 pb-6">
+              <button
+                onClick={() => handleCheckout(p.id)}
+                disabled={loadingProduct !== null}
+                className={`w-full py-3 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60 ${
+                  p.highlight
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-slate-900 text-white hover:bg-slate-800'
+                }`}>
+                {loadingProduct === p.id
+                  ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>
+                  : <>
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                      <rect x="1" y="4" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+                      <path d="M1 8H15" stroke="currentColor" strokeWidth="1.5"/>
+                    </svg>
+                    {p.cta}
+                  </>}
+              </button>
             </div>
           </div>
+        ))}
+      </div>
+
+      {/* Comparison table */}
+      <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden mb-8">
+        <div className="px-6 py-4 border-b border-slate-100">
+          <h3 className="font-semibold text-slate-900 text-sm">Comparaison détaillée</h3>
         </div>
-      </section>
-
-      {/* FAQ */}
-      <section id="faq" className="faq-section">
-        <div className="section-inner">
-          <div className="section-eyebrow">Questions fréquentes</div>
-          <h2 className="section-title">Tout ce que vous voulez savoir</h2>
-          <p className="section-sub">Une question sans réponse ? Écrivez-nous à contact@seculoca.fr</p>
-          <div className="faq-grid">
-            <div className="faq-item"><div className="faq-q">Comment <strong>Seculoca</strong> détecte-t-il les arnaques ?</div><div className="faq-a">Notre IA analyse le texte de l'annonce en croisant plusieurs indicateurs de risque connus : formulations suspectes, prix anormaux, demandes de paiement non sécurisées…</div></div>
-            <div className="faq-item"><div className="faq-q">Sur quelles plateformes puis-je l'utiliser ?</div><div className="faq-a">Sur toutes. <strong>Seculoca</strong> fonctionne avec n'importe quelle annonce textuelle : Leboncoin, SeLoger, PAP, Logic-Immo, Facebook Marketplace…</div></div>
-            <div className="faq-item"><div className="faq-q">Mes données sont-elles conservées ?</div><div className="faq-a">Non. Le contenu des annonces analysées n'est pas conservé après le traitement. Seules vos métadonnées de compte sont stockées, conformément au RGPD.</div></div>
-            <div className="faq-item"><div className="faq-q">Le score est-il toujours fiable ?</div><div className="faq-a"><strong>Seculoca</strong> affiche un score de risque basé sur des indicateurs pertinents. Un score élevé doit alerter, pas remplacer votre jugement.</div></div>
-            <div className="faq-item"><div className="faq-q">Puis-je annuler mon abonnement à tout moment ?</div><div className="faq-a">Oui, sans engagement, sans frais. Vous pouvez annuler depuis votre espace client en un clic.</div></div>
-            <div className="faq-item"><div className="faq-q">Existe-t-il une version pour les professionnels ?</div><div className="faq-a">Oui, le Plan Pro inclut 1000 analyses par mois (au-delà, 0,69 € par analyse supplémentaire, sans coupure de service) et un support prioritaire. Pour les agences souhaitant intégrer <strong>Seculoca</strong> via API ou dépassant régulièrement ce volume, contactez-nous pour une offre sur mesure.</div></div>
-          </div>
-        </div>
-      </section>
-
-      {/* RGPD */}
-      <div className="trust-band">
-        <div className="trust-band-inner">
-          <div>
-            <h3 style={{fontSize:'1.4rem',fontWeight:'700',marginBottom:'8px'}}>Vos données vous appartiennent</h3>
-            <p style={{fontSize:'0.88rem',color:'rgba(255,255,255,0.6)',maxWidth:'480px'}}><strong>Seculoca</strong> ne conserve jamais le contenu des annonces analysées. Nos serveurs sont hébergés en Europe, conformément au RGPD.</p>
-          </div>
-          <div className="trust-badges">
-            <div className="trust-badge">🛡️ RGPD Conforme</div>
-            <div className="trust-badge">🔒 Données chiffrées</div>
-            <div className="trust-badge">🌍 Hébergé en Europe</div>
-          </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-50">
+                <th className="text-left px-5 py-3 text-slate-500 font-medium text-xs">Fonctionnalité</th>
+                {['Découverte', 'Essentiel', 'Max', 'Pro'].map(n => (
+                <th key={n} className="px-4 py-3 text-slate-700 font-semibold text-xs text-center">{n}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {[
+              ['Nombre d\'analyses',           '5',        '20/mois',     '60/mois',      '1000/mois + dépassement'],
+              ['Rapport PDF',                   '✅',        '✅',           '✅',            '✅'],
+              ['Reverse image search',          '✅',        '✅',           '✅',            '✅'],
+              ['Base communautaire',            '✅',        '✅',           '✅',            '✅'],
+              ['Vérifier un paiement demandé',  '✅',        '✅',           '✅',            '✅'],
+              ['Partage de rapport',            '✅',        '✅',           '✅',            '✅'],
+              ['Historique des analyses',       '❌',        '✅',           '✅',            '✅'],
+              ['Export PDF',                    '❌',        '❌',           '✅',            '✅'],
+              ['Clé API pour intégration',      '❌',        '❌',           '❌',            'Sur demande'],
+              ['Support',                       '—',         'Email',       'Email',        'Prioritaire'],
+              ['Prix',                          'Gratuit',   '9,99 €/mois', '29,99 €/mois', '499 €/mois'],
+                          ].map(([feature, ...vals]) => (
+                <tr key={feature} className="hover:bg-slate-50/50">
+                  <td className="px-5 py-3 text-slate-700 font-medium">{feature}</td>
+                  {vals.map((v, i) => (
+                    <td key={i} className={`px-4 py-3 text-center text-slate-600 ${i === 2 ? 'font-medium text-blue-700' : ''}`}>{v}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* CONTACT */}
-      <section id="contact" className="contact-section">
-        <div className="section-inner">
-          <div className="section-eyebrow">Contact</div>
-          <h2 className="section-title">Une question ? Écrivez-nous</h2>
-          <p className="section-sub">Notre équipe vous répond sous 24h ouvrées.</p>
-          <div className="contact-grid">
-            <div className="contact-form">
-              <div className="form-row">
-                <div><label className="form-label">Prénom *</label><input className="form-input" placeholder="Votre prénom" value={contactForm.prenom} onChange={e => setContactForm({...contactForm, prenom: e.target.value})} /></div>
-                <div><label className="form-label">Nom *</label><input className="form-input" placeholder="Votre nom" value={contactForm.nom} onChange={e => setContactForm({...contactForm, nom: e.target.value})} /></div>
-              </div>
-              <div className="form-group"><label className="form-label">Adresse e-mail *</label><input className="form-input" type="email" placeholder="votre@email.fr" value={contactForm.email} onChange={e => setContactForm({...contactForm, email: e.target.value})} /></div>
-              <div className="form-group"><label className="form-label">Numéro de mobile</label><input className="form-input" type="tel" placeholder="+33 6 XX XX XX XX" value={contactForm.mobile} onChange={e => setContactForm({...contactForm, mobile: e.target.value})} /></div>
-              <div className="form-group">
-                <label className="form-label">Sujet *</label>
-                <select className="form-input" value={contactForm.sujet} onChange={e => setContactForm({...contactForm, sujet: e.target.value})}>
-                  <option value="">Sélectionnez un sujet</option>
-                  <option>Question sur mon abonnement</option>
-                  <option>Problème technique</option>
-                  <option>Signaler une annonce frauduleuse</option>
-                  <option>Partenariat / Intégration API</option>
-                  <option>Presse / Médias</option>
-                  <option>Autre</option>
-                </select>
-              </div>
-              <div className="form-group"><label className="form-label">Message *</label><textarea className="form-input" rows="5" placeholder="Décrivez votre demande…" value={contactForm.message} onChange={e => setContactForm({...contactForm, message: e.target.value})} style={{resize:'vertical'}} /></div>
-              {error && <p style={{color:'var(--danger)',fontSize:'0.85rem',marginBottom:'12px'}}>⚠️ {error}</p>}
-              {sent && <p style={{color:'var(--ok)',fontSize:'0.85rem',marginBottom:'12px'}}>✅ Message envoyé ! Nous vous répondrons sous 24h.</p>}
-              <button className="btn btn-primary" style={{width:'100%',justifyContent:'center'}} onClick={handleContact} disabled={sending}>
-                {sending ? 'Envoi en cours...' : 'Envoyer le message →'}
-              </button>
-            </div>
-            <div style={{padding:'16px 0'}}>
-              <div style={{marginBottom:'32px'}}>
-                <h3 style={{fontSize:'1.1rem',fontWeight:'700',color:'var(--blue-900)',marginBottom:'8px'}}>📧 Email direct</h3>
-                <a href="mailto:contact@seculoca.fr" style={{color:'var(--blue-500)',fontWeight:'600',textDecoration:'none'}}>contact@seculoca.fr</a>
-                <p style={{fontSize:'0.85rem',color:'var(--muted)',marginTop:'4px'}}>Réponse sous 24h ouvrées</p>
-              </div>
-              <div style={{marginBottom:'32px'}}>
-                <h3 style={{fontSize:'1.1rem',fontWeight:'700',color:'var(--blue-900)',marginBottom:'8px'}}>🕐 Horaires</h3>
-                <p style={{fontSize:'0.88rem',color:'var(--muted)',lineHeight:'1.7'}}>Lundi – Vendredi : 9h00 – 18h00<br/>Samedi : 10h00 – 13h00<br/>Dimanche : fermé</p>
-              </div>
-            </div>
-          </div>
+      {/* Security badges */}
+      <div className="text-center space-y-2">
+        <div className="flex items-center justify-center gap-6 text-xs text-slate-400 flex-wrap">
+          {['🔒 Paiement sécurisé SSL', '💳 Stripe PCI DSS niveau 1', '↩️ Résiliation en 1 clic', '🏦 Aucune donnée bancaire stockée'].map(t => (
+            <span key={t}>{t}</span>
+          ))}
         </div>
-      </section>
-
-      {/* CTA FINAL */}
-      <section className="cta-section">
-        <div className="section-inner" style={{textAlign:'center'}}>
-          <h2>Votre prochaine location<br/>mérite une vérification.</h2>
-          <p>Rejoignez des milliers de locataires qui vérifient avant de payer.</p>
-          <Link to="/connexion?mode=register" className="btn btn-white btn-large">Analyser une annonce maintenant →</Link>
-        </div>
-      </section>
-
-      {/* FOOTER */}
-      <footer>
-        <div className="logo" style={{opacity:0.6}}>
-          <span style={{fontFamily:'Syne,sans-serif',fontWeight:'800',color:'rgba(255,255,255,0.6)'}}>Secu<span style={{color:'rgba(255,255,255,0.4)'}}>loca</span></span>
-        </div>
-        <span>© 2026 Seculoca — Tous droits réservés</span>
-        <div className="footer-links">
-          <Link to="/mentions-legales">Mentions légales</Link>
-            <Link to="/confidentialite">Confidentialité</Link>
-            <Link to="/cgu">CGU</Link>
-            <a href="#contact">Contact</a>
-        </div>
-      </footer>
-    </>
+      </div>
+    </div>
   );
 }
