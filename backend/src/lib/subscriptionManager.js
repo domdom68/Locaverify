@@ -6,8 +6,15 @@
  * Plans:
  *  - free      : 5 analyses at signup, no renewal
  *  - pack      : prepaid credits (one-time purchase)
- *  - solo      : 29.99€/year, 500 analyses Fair Use
- *  - pro       : 99€/year, unlimited (2000 Fair Use) + API + CSV export
+ *  - essentiel : 9,99€/mois, 20 analyses/mois (hard cap)
+ *  - max       : 29,99€/mois, 60 analyses/mois (hard cap)
+ *  - pro       : 499€/mois, 1000 analyses incluses/mois — PAS de coupure
+ *                au-delà : le dépassement continue d'être servi et est
+ *                facturé 0,69€/analyse sur la facture Stripe suivante
+ *                (voir webhook.js, cas 'invoice.payment_succeeded').
+ *                Pas d'API incluse par défaut — proposée sur demande
+ *                explicite d'un client (voir échange du 31/08/2026 sur
+ *                la refonte tarifaire du pack Pro).
  */
 
 const { supabase } = require('../middleware/auth');
@@ -16,7 +23,7 @@ const PLANS = {
   free:      { name: 'Découverte', fairUse: 5,   monthly: false, hasApi: false, hasCsv: false },
   essentiel: { name: 'Essentiel',   fairUse: 20,  monthly: true,  hasApi: false, hasCsv: false },
   max:       { name: 'Max',         fairUse: 60,  monthly: true,  hasApi: false, hasCsv: false },
-  pro:       { name: 'Pro',         fairUse: null, monthly: true, hasApi: true,  hasCsv: true  },
+  pro:       { name: 'Pro',         fairUse: 1000, monthly: true, hasApi: false, hasCsv: true, overagePricePerAnalysis: 0.69 },
 };
 
 /**
@@ -50,8 +57,13 @@ async function getUserPlanState(userId) {
     // Fair Use check (reset yearly)
     const renewedAt = profile.plan_renewed_at ? new Date(profile.plan_renewed_at) : now;
     const usageThisYear = profile.analyses_this_year || 0;
+    const overage = planInfo.fairUse !== null ? Math.max(0, usageThisYear - planInfo.fairUse) : 0;
 
-    if (planInfo.fairUse !== null && usageThisYear >= planInfo.fairUse) {
+    // Le pack Pro n'a pas de coupure : au-delà du forfait inclus, on
+    // continue de servir les analyses (le dépassement est facturé en fin
+    // de cycle — voir webhook.js). Les autres formules restent bloquées
+    // à leur plafond, comme avant.
+    if (plan !== 'pro' && planInfo.fairUse !== null && usageThisYear >= planInfo.fairUse) {
       return {
         plan, canAnalyse: false,
         reason: `Limite d'utilisation raisonnable atteinte (${planInfo.fairUse} analyses/mois). Contactez le support si vous avez un besoin exceptionnel.`,
@@ -62,7 +74,9 @@ async function getUserPlanState(userId) {
     return {
       plan, canAnalyse: true,
       usageThisYear, fairUse: planInfo.fairUse,
-      remaining: planInfo.fairUse - usageThisYear,
+      remaining: planInfo.fairUse !== null ? Math.max(0, planInfo.fairUse - usageThisYear) : null,
+      overage,
+      overagePricePerAnalysis: planInfo.overagePricePerAnalysis || null,
       expiresAt: profile.plan_expires_at,
     };
   }
@@ -74,7 +88,7 @@ async function getUserPlanState(userId) {
       plan, canAnalyse: false,
       reason: plan === 'free'
         ? 'Vos 5 analyses gratuites sont épuisées. Achetez un pack ou souscrivez un abonnement.'
-        : 'Crédits épuisés. Achetez un nouveau pack ou passez à un abonnement illimité.',
+        : 'Crédits épuisés. Achetez un nouveau pack ou passez à un abonnement mensuel.',
       creditsLeft: 0,
     };
   }
