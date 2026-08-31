@@ -333,20 +333,21 @@ export default function Landing() {
             </div>
             <div className="plan-card">
               <div className="plan-name">Pro</div>
-             <div className="plan-price">99,99 <sup>€</sup></div>
+             <div className="plan-price">499 <sup>€</sup></div>
               <div className="plan-period">par mois</div>
               <div className="plan-divider"/>
               <ul className="plan-features">
-                <li><span className="check">✓</span> Analyses illimitées</li>
+                <li><span className="check">✓</span> 1000 analyses / mois incluses</li>
+                <li><span className="check">✓</span> Au-delà : 0,69 € / analyse, sans coupure</li>
                 <li><span className="check">✓</span> Score de risque global</li>
                 <li><span className="check">✓</span> Rapport complet</li>
                 <li><span className="check">✓</span> Vérifier un paiement demandé</li>
                 <li><span className="check">✓</span> Historique des analyses</li>
                 <li><span className="check">✓</span> Export PDF</li>
-                <li><span className="check">✓</span> Clé API pour intégration</li>
                 <li><span className="check">✓</span> Support prioritaire</li>
               </ul>
-              <Link to="/connexion?mode=register" className="btn btn-outline" style={{width:'100%',justifyContent:'center'}}>Choisir</Link>
+              <p style={{fontSize:'0.78rem', color:'var(--text-muted, #64748b)', margin:'10px 0 0', textAlign:'center'}}>Intégration API disponible sur demande</p>
+              <Link to="/connexion?mode=register" className="btn btn-outline" style={{width:'100%',justifyContent:'center', marginTop:'10px'}}>Choisir</Link>
             </div>
           </div>
         </div>
@@ -364,7 +365,7 @@ export default function Landing() {
             <div className="faq-item"><div className="faq-q">Mes données sont-elles conservées ?</div><div className="faq-a">Non. Le contenu des annonces analysées n'est pas conservé après le traitement. Seules vos métadonnées de compte sont stockées, conformément au RGPD.</div></div>
             <div className="faq-item"><div className="faq-q">Le score est-il toujours fiable ?</div><div className="faq-a"><strong>Seculoca</strong> affiche un score de risque basé sur des indicateurs pertinents. Un score élevé doit alerter, pas remplacer votre jugement.</div></div>
             <div className="faq-item"><div className="faq-q">Puis-je annuler mon abonnement à tout moment ?</div><div className="faq-a">Oui, sans engagement, sans frais. Vous pouvez annuler depuis votre espace client en un clic.</div></div>
-            <div className="faq-item"><div className="faq-q">Existe-t-il une version pour les professionnels ?</div><div className="faq-a">Oui, le Plan Pro offre des analyses illimitées et un support prioritaire. Pour les agences souhaitant intégrer <strong>Seculoca</strong> via API, contactez-nous.</div></div>
+            <div className="faq-item"><div className="faq-q">Existe-t-il une version pour les professionnels ?</div><div className="faq-a">Oui, le Plan Pro inclut 1000 analyses par mois (au-delà, 0,69 € par analyse supplémentaire, sans coupure de service) et un support prioritaire. Pour les agences souhaitant intégrer <strong>Seculoca</strong> via API ou dépassant régulièrement ce volume, contactez-nous pour une offre sur mesure.</div></div>
           </div>
         </div>
       </section>
