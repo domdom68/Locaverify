@@ -8,7 +8,7 @@ const FAQS = [
   },
   {
     q: "Comment fonctionne le système de crédits ?",
-    a: "Seculoca propose 4 formules : Découverte (gratuit, 5 analyses), Essentiel (9,99€/mois, 20 analyses/mois), Max (29,99€/mois, 60 analyses/mois, notre offre la plus populaire), et Pro (99,99€/mois, analyses illimitées, export PDF et support prioritaire). Chaque formule supérieure inclut un rapport plus complet et un historique plus long."
+    a: "Seculoca propose 4 formules : Découverte (gratuit, 5 analyses), Essentiel (9,99€/mois, 20 analyses/mois), Max (29,99€/mois, 60 analyses/mois, notre offre la plus populaire), et Pro (499€/mois, 1000 analyses incluses puis 0,69€/analyse supplémentaire sans coupure de service, export PDF et support prioritaire). Chaque formule supérieure inclut un rapport plus complet et un historique plus long."
   },
   {
     q: "Que se passe-t-il quand je n'ai plus de crédits ?",
