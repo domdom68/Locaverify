@@ -42,7 +42,7 @@ router.post('/analyse', async (req, res) => {
     if (now - usage.firstUsed < DAY_MS && usage.count >= 1) {
       return res.status(429).json({
         error: 'Vous avez déjà utilisé votre analyse gratuite.',
-        cta: 'Créez un compte gratuit pour obtenir 5 analyses supplémentaires.',
+        cta: 'Créez un compte gratuit pour obtenir 3 analyses supplémentaires.',
       });
     }
     if (now - usage.firstUsed >= DAY_MS) {
@@ -105,7 +105,7 @@ Format JSON attendu :
       summary: analysis.summary,
       recommendation: analysis.recommendation,
       isDemo: true,
-      message: 'Analyse gratuite utilisée. Créez un compte pour accéder à votre historique, au rapport détaillé et à 5 analyses supplémentaires.',
+      message: 'Analyse gratuite utilisée. Créez un compte pour accéder à votre historique, au rapport détaillé et à 3 analyses supplémentaires.',
     });
   } catch (err) {
     console.error('Demo analyse error:', err);
