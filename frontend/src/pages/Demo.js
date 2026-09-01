@@ -99,7 +99,7 @@ export default function Demo() {
         <div className="flex items-center gap-3">
           <Link to="/connexion" className="text-sm text-slate-600 hover:text-slate-900 font-medium">Connexion</Link>
           <Link to="/connexion" className="text-sm font-medium px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors">
-            Créer un compte — 5 analyses gratuites
+            Créer un compte — 3 analyses gratuites
           </Link>
         </div>
       </nav>
@@ -172,7 +172,7 @@ export default function Demo() {
                   <div>
                     {error}
                     {error.includes('déjà utilisé') && (
-                      <Link to="/connexion" className="block mt-1 font-semibold underline">Créer un compte gratuit (5 analyses) →</Link>
+                      <Link to="/connexion" className="block mt-1 font-semibold underline">Créer un compte gratuit (3 analyses) →</Link>
                     )}
                   </div>
                 </div>
@@ -187,7 +187,7 @@ export default function Demo() {
 
               <p className="text-center text-xs text-slate-400">
                 1 analyse gratuite par jour · Résultats non sauvegardés ·{' '}
-                <Link to="/connexion" className="text-blue-600 hover:underline">Créer un compte</Link> pour 5 analyses + historique
+                <Link to="/connexion" className="text-blue-600 hover:underline">Créer un compte</Link> pour 3 analyses + historique
               </p>
             </form>
           </div>
