@@ -4,7 +4,9 @@
  * credit checks for one-time packs, and plan feature gating.
  *
  * Plans:
- *  - free      : 5 analyses at signup, no renewal
+ *  - free      : 3 analyses at signup, no renewal (crédits accordés par
+ *                le trigger Supabase public.handle_new_user(), pas par
+ *                ce fichier — voir la migration reduce_free_signup_credits_to_three)
  *  - pack      : prepaid credits (one-time purchase)
  *  - essentiel : 9,99€/mois, 20 analyses/mois (hard cap)
  *  - max       : 29,99€/mois, 60 analyses/mois (hard cap)
@@ -20,7 +22,7 @@
 const { supabase } = require('../middleware/auth');
 
 const PLANS = {
-  free:      { name: 'Découverte', fairUse: 5,   monthly: false, hasApi: false, hasCsv: false },
+  free:      { name: 'Découverte', fairUse: 3,   monthly: false, hasApi: false, hasCsv: false },
   essentiel: { name: 'Essentiel',   fairUse: 20,  monthly: true,  hasApi: false, hasCsv: false },
   max:       { name: 'Max',         fairUse: 60,  monthly: true,  hasApi: false, hasCsv: false },
   pro:       { name: 'Pro',         fairUse: 1000, monthly: true, hasApi: false, hasCsv: true, overagePricePerAnalysis: 0.69 },
@@ -87,7 +89,7 @@ async function getUserPlanState(userId) {
     return {
       plan, canAnalyse: false,
       reason: plan === 'free'
-        ? 'Vos 5 analyses gratuites sont épuisées. Achetez un pack ou souscrivez un abonnement.'
+        ? 'Vos 3 analyses gratuites sont épuisées. Achetez un pack ou souscrivez un abonnement.'
         : 'Crédits épuisés. Achetez un nouveau pack ou passez à un abonnement mensuel.',
       creditsLeft: 0,
     };
