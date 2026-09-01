@@ -291,7 +291,7 @@ export default function Landing() {
               <div className="plan-period">&nbsp;</div>
               <div className="plan-divider"/>
               <ul className="plan-features">
-                <li><span className="check">✓</span> 5 analyses</li>
+                <li><span className="check">✓</span> 3 analyses</li>
                 <li><span className="check">✓</span> Score de risque global</li>
                 <li><span className="check">✓</span> Tous les signaux détectés</li>
                 <li><span className="check">✓</span> Rapport complet</li>
