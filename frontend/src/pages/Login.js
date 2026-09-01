@@ -64,11 +64,11 @@ export default function Login() {
             <span className="font-bold text-xl text-slate-900">Seculoca</span>
           </Link>
           <p className="text-slate-500 text-sm mt-3">
-            {mode === 'login' ? 'Bienvenue ! Connectez-vous pour continuer.' : 'Créez votre compte et recevez 5 analyses offertes.'}
+            {mode === 'login' ? 'Bienvenue ! Connectez-vous pour continuer.' : 'Créez votre compte et recevez 3 analyses offertes.'}
           </p>
           {mode === 'register' && (
             <div className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full bg-green-50 text-green-700 text-xs font-semibold border border-green-100">
-              🎁 5 analyses gratuites à l'inscription — sans carte bancaire
+              🎁 3 analyses gratuites à l'inscription — sans carte bancaire
             </div>
           )}
         </div>
