@@ -76,7 +76,7 @@ export default function RapportPublic() {
             {/* CTA */}
             <div className="bg-slate-900 rounded-2xl p-6 text-center">
               <p className="text-white font-semibold mb-1">Vérifiez vos propres annonces</p>
-              <p className="text-slate-400 text-sm mb-4">5 analyses gratuites à l'inscription · sans carte bancaire</p>
+              <p className="text-slate-400 text-sm mb-4">3 analyses gratuites à l'inscription · sans carte bancaire</p>
               <Link to="/connexion"
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 transition-colors">
                 Créer un compte gratuit →
