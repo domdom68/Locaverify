@@ -6,9 +6,13 @@ import Turnstile from '../components/Turnstile';
 // Point 2 du plan anti-abus : la case anti-robot Turnstile ci-dessous n'a
 // d'effet que si Cloudflare Turnstile est aussi activé côté Supabase
 // (Dashboard > Authentication > Settings > Bot and Abuse Protection) —
-// c'est Supabase qui vérifie le jeton, pas ce composant. Elle ne s'affiche
-// que sur l'inscription (créer un compte gratuit = obtenir 5 essais), pas
-// sur la connexion d'un compte déjà existant.
+// c'est Supabase qui vérifie le jeton, pas ce composant. Corrigé le
+// 01/09/2026 : la protection anti-robot de Supabase s'applique en réalité
+// à TOUTES les connexions par mot de passe (signInWithPassword), pas
+// seulement à l'inscription — sans ce composant ici aussi, chaque tentative
+// de connexion était rejetée par Supabase avec "captcha protection: request
+// disallowed" et l'utilisateur voyait à tort "Email ou mot de passe
+// incorrect".
 const REQUIRE_CAPTCHA = !!process.env.REACT_APP_TURNSTILE_SITE_KEY;
 
 export default function Login() {
@@ -28,12 +32,15 @@ export default function Login() {
     setError('');
     setSuccess('');
 
+    if (REQUIRE_CAPTCHA && !captchaToken) {
+      setError(mode === 'register'
+        ? 'Merci de valider la case anti-robot avant de créer votre compte.'
+        : 'Merci de valider la case anti-robot avant de vous connecter.');
+      setLoading(false);
+      return;
+    }
+
     if (mode === 'register') {
-      if (REQUIRE_CAPTCHA && !captchaToken) {
-        setError('Merci de valider la case anti-robot avant de créer votre compte.');
-        setLoading(false);
-        return;
-      }
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -41,11 +48,21 @@ export default function Login() {
       });
       if (error) setError(error.message);
       else setSuccess("Compte créé ! Vérifiez votre email pour confirmer votre inscription.");
-      setCaptchaToken('');
     } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setError('Email ou mot de passe incorrect.');
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+        options: captchaToken ? { captchaToken } : undefined,
+      });
+      if (error) {
+        setError(
+          error.message && error.message.toLowerCase().includes('captcha')
+            ? "Vérification anti-robot invalide ou expirée, merci de réessayer."
+            : 'Email ou mot de passe incorrect.'
+        );
+      }
     }
+    setCaptchaToken('');
     setLoading(false);
   };
 
@@ -80,7 +97,7 @@ export default function Login() {
             {['login', 'register'].map((m) => (
               <button
                 key={m}
-                onClick={() => { setMode(m); setError(''); setSuccess(''); }}
+                onClick={() => { setMode(m); setError(''); setSuccess(''); setCaptchaToken(''); }}
                 className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${
                   mode === m ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                 }`}
@@ -137,9 +154,7 @@ export default function Login() {
               {mode === 'register' && <p className="text-xs text-slate-400 mt-1">Minimum 8 caractères</p>}
             </div>
 
-            {mode === 'register' && (
-              <Turnstile onVerify={setCaptchaToken} onExpire={() => setCaptchaToken('')} />
-            )}
+            <Turnstile key={mode} onVerify={setCaptchaToken} onExpire={() => setCaptchaToken('')} />
 
             {error && (
               <div className="flex items-start gap-2 p-3 bg-red-50 rounded-lg text-sm text-red-600">
@@ -156,7 +171,7 @@ export default function Login() {
 
             <button
               type="submit"
-              disabled={loading || (mode === 'register' && REQUIRE_CAPTCHA && !captchaToken)}
+              disabled={loading || (REQUIRE_CAPTCHA && !captchaToken)}
               className="w-full py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
