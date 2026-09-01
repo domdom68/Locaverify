@@ -4,11 +4,11 @@ import { Link } from 'react-router-dom';
 const FAQS = [
   {
     q: "Est-ce que Seculoca est vraiment gratuit au départ ?",
-    a: "Oui. Chaque nouveau compte reçoit automatiquement 5 analyses gratuites dès l'inscription, sans avoir à renseigner de carte bancaire. C'est suffisant pour tester le service sur de vraies annonces avant de décider si vous souhaitez continuer."
+    a: "Oui. Chaque nouveau compte reçoit automatiquement 3 analyses gratuites dès l'inscription, sans avoir à renseigner de carte bancaire. C'est suffisant pour tester le service sur de vraies annonces avant de décider si vous souhaitez continuer."
   },
   {
     q: "Comment fonctionne le système de crédits ?",
-    a: "Seculoca propose 4 formules : Découverte (gratuit, 5 analyses), Essentiel (9,99€/mois, 20 analyses/mois), Max (29,99€/mois, 60 analyses/mois, notre offre la plus populaire), et Pro (499€/mois, 1000 analyses incluses puis 0,69€/analyse supplémentaire sans coupure de service, export PDF et support prioritaire). Chaque formule supérieure inclut un rapport plus complet et un historique plus long."
+    a: "Seculoca propose 4 formules : Découverte (gratuit, 3 analyses), Essentiel (9,99€/mois, 20 analyses/mois), Max (29,99€/mois, 60 analyses/mois, notre offre la plus populaire), et Pro (499€/mois, 1000 analyses incluses puis 0,69€/analyse supplémentaire sans coupure de service, export PDF et support prioritaire). Chaque formule supérieure inclut un rapport plus complet et un historique plus long."
   },
   {
     q: "Que se passe-t-il quand je n'ai plus de crédits ?",
