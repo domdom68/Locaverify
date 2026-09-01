@@ -11,7 +11,7 @@ const FREE_PACK = {
   badge: '✦ Offert', badgeColor: 'bg-green-100 text-green-700',
   highlight: false, isSubscription: false, isFree: true,
   description: 'Pour découvrir le service',
-  features: ['5 analyses incluses à l\'inscription', 'Rapport PDF téléchargeable', 'Vérifier un paiement demandé', 'Sans carte bancaire'],
+  features: ['3 analyses incluses à l\'inscription', 'Rapport PDF téléchargeable', 'Vérifier un paiement demandé', 'Sans carte bancaire'],
   cta: 'Déjà activé ✓', ctaDisabled: true,
 };
 
@@ -160,7 +160,7 @@ export default function Paiement() {
       <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl mb-6 text-sm text-green-800">
         <span className="text-lg flex-shrink-0">🎁</span>
         <span>
-          <strong>Pack Découverte</strong> — 5 analyses gratuites offertes à l'inscription.
+          <strong>Pack Découverte</strong> — 3 analyses gratuites offertes à l'inscription.
           {profile?.credits > 0 && profile?.plan === 'free'
             ? <> Il vous reste <strong>{profile.credits} crédit{profile.credits > 1 ? 's' : ''}</strong>.</>
             : null}
@@ -296,7 +296,7 @@ export default function Paiement() {
           </thead>
           <tbody className="divide-y divide-slate-50">
             {[
-              ['Nombre d\'analyses',           '5',        '20/mois',     '60/mois',      '1000/mois + dépassement'],
+              ['Nombre d\'analyses',           '3',        '20/mois',     '60/mois',      '1000/mois + dépassement'],
               ['Rapport PDF',                   '✅',        '✅',           '✅',            '✅'],
               ['Reverse image search',          '✅',        '✅',           '✅',            '✅'],
               ['Base communautaire',            '✅',        '✅',           '✅',            '✅'],
