@@ -86,16 +86,30 @@ router.post('/', requireAuth, async (req, res) => {
         if (url) {
           try {
             const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 8000);
+            const timeout = setTimeout(() => controller.abort(), 10000);
+            // NB (04/09/2026) : le précédent User-Agent "Mozilla/5.0 (compatible;
+            // Seculoca/1.0)" s'annonçait explicitement comme un robot. Certains
+            // sites (constaté sur papvacances.fr) renvoient alors une page sans
+            // les photos (0 image extraite à chaque fois, alors que les mêmes
+            // annonces ont bien des <img src="..."> quand on les charge comme un
+            // vrai navigateur). On reprend ici le même User-Agent "navigateur"
+            // déjà utilisé avec succès dans scrape.js.
             const pageRes = await fetch(url, {
               signal: controller.signal,
-              headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Seculoca/1.0)' },
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'fr-FR,fr;q=0.9',
+              },
             });
             clearTimeout(timeout);
+            if (!pageRes.ok) {
+              return { checked: false, reason: `Page inaccessible pour l'analyse des images (HTTP ${pageRes.status})`, results: [], summary: { dangerCount: 0, warningCount: 0, totalChecked: 0 } };
+            }
             const html = await pageRes.text();
             return analyseListingImages(html, url, process.env.GOOGLE_VISION_API_KEY);
-          } catch {
-            return { checked: false, reason: 'Page inaccessible pour l\'analyse des images', results: [], summary: { dangerCount: 0, warningCount: 0, totalChecked: 0 } };
+          } catch (err) {
+            return { checked: false, reason: `Page inaccessible pour l'analyse des images (${err.name === 'AbortError' ? 'délai dépassé' : err.message})`, results: [], summary: { dangerCount: 0, warningCount: 0, totalChecked: 0 } };
           }
         }
         return { checked: false, reason: 'Aucune URL fournie pour extraire les images', results: [], summary: { dangerCount: 0, warningCount: 0, totalChecked: 0 } };
@@ -205,7 +219,7 @@ const surfaceM2 = (surface && parseFloat(surface) > 0) ? parseFloat(surface) : (
         recommendation,
         criteria: allCriteria,
         title: `${localisation} — ${prix ? prix + '€/' + dureePrixLabel : 'prix non renseigné'}`,
-        image_check_summary: imgData ? { ...imgData.summary, hashes: imageHashes } : null,
+        image_check_summary: imgData ? { checked: imgData.checked, reason: imgData.reason || null, ...imgData.summary, hashes: imageHashes } : null,
         community_check_summary: comData ? { hasHits: comData.hasHits, dangerCount: comData.dangerCount } : null,
       })
       .select()
