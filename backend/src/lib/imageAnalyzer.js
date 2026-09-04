@@ -250,6 +250,57 @@ async function checkImageWithVision(imageUrl, apiKey) {
   });
 }
 
+// ── Grands portails immobiliers reconnus (04/09/2026) ─────────────
+// Retrouver une photo sur l'un de ces sites n'est PAS un signal de vol :
+// une même agence ou un même propriétaire publie très couramment la
+// même annonce (mêmes photos) sur plusieurs grands portails à la fois
+// (ex : LeBonCoin + PAP + SeLoger pour la même annonce). Avant ce
+// correctif, le simple nombre de copies exactes (>=3) déclenchait
+// "image volée très probable" même quand ces copies étaient toutes sur
+// ces portails — donnant une fausse alerte "Risque élevé" à des
+// annonces d'agences par ailleurs parfaitement légitimes (cas trouvé :
+// annonce SeLoger d'une agence avec SIRET et carte professionnelle
+// affichés, signalée à tort). Liste volontairement modifiable — à
+// compléter au fil de l'eau si un grand site connu n'y figure pas.
+// NB (04/09/2026) : chaque domaine ci-dessous a été vérifié individuellement
+// (recherche web du vrai nom de domaine officiel) avant ajout — plusieurs
+// noms "évidents" se sont révélés faux à la vérification (ex : Guy Hoquet
+// est en réalité sur guy-hoquet.com avec un tiret, Stéphane Plaza sur
+// stephaneplazaimmobilier.com, Expertimo sur reseau-expertimo.fr). Un
+// domaine mal orthographié ici n'est pas dangereux (il ne correspondra
+// simplement à rien), mais autant que la liste serve à quelque chose.
+// Réseaux proposés le 04/09/2026 dont je n'ai pas trouvé de domaine
+// officiel fiable à ce stade et donc volontairement PAS ajoutés : ERA,
+// Dr House Immo. Envoie-moi le lien d'une de leurs annonces si tu veux
+// que je les ajoute précisément.
+const KNOWN_LISTING_PLATFORMS = [
+  // Grands portails d'annonces
+  'leboncoin.fr', 'seloger.com', 'selogerneuf.com', 'logic-immo.com',
+  'pap.fr', 'papvacances.fr', 'bienici.com', 'avendrealouer.fr',
+  'immo-facile.com', 'superimmo.com', 'locservice.fr', 'gererseul.com',
+  'immobilier.lefigaro.fr', 'ouestfrance-immo.com', 'explorimmo.com',
+  'immoregion.fr', 'notaires.fr',
+  // Réseaux d'agences (succursales/franchises classiques)
+  'orpi.com', 'century21.fr', 'laforet.com', 'guy-hoquet.com',
+  'nexity.fr', 'foncia.com', 'citya.com', 'stephaneplazaimmobilier.com',
+  'squarehabitat.fr', 'nestenn.com', 'ladresse.com', 'human-immobilier.fr',
+  'arthurimmo.com',
+  // Réseaux de mandataires (agents commerciaux indépendants sous une
+  // même bannière) — liste fournie par Dominique le 04/09/2026, domaines
+  // vérifiés un par un
+  'iadfrance.fr', 'safti.fr', 'bskimmobilier.com', 'proprietes-privees.com',
+  'capifrance.fr', 'efficity.com', 'optimhome.com', 'reseau-expertimo.fr',
+  '3gimmo.com',
+];
+
+function classifyDomain(hostname) {
+  const h = (hostname || '').toLowerCase();
+  if (!h) return 'internal';
+  if (h.includes('google') || h.includes('seculoca')) return 'internal';
+  if (KNOWN_LISTING_PLATFORMS.some(p => h.includes(p))) return 'trusted';
+  return 'unknown';
+}
+
 // ── Analyse results and return structured risk assessment ────────
 function assessImageRisk(visionResult, imageUrl) {
   if (!visionResult) return null;
@@ -261,31 +312,59 @@ function assessImageRisk(visionResult, imageUrl) {
 
   const totalMatches = fullMatches.length + partialMatches.length;
 
-  const foreignDomains = pages
+  const pageDomains = pages
     .map(p => { try { return new URL(p.url).hostname; } catch { return null; } })
-    .filter(Boolean)
-    .filter(d => !d.includes('leboncoin') && !d.includes('seloger') &&
-                 !d.includes('pap.fr') && !d.includes('google') &&
-                 !d.includes('seculoca'));
+    .filter(Boolean);
 
-  const uniqueForeign = [...new Set(foreignDomains)].slice(0, 5);
+  const trustedDomains = [...new Set(pageDomains.filter(d => classifyDomain(d) === 'trusted'))];
+  const unknownDomains = [...new Set(pageDomains.filter(d => classifyDomain(d) === 'unknown'))].slice(0, 5);
 
-  if (fullMatches.length >= 3 || foreignDomains.length >= 2) {
+  // Danger : la photo apparaît sur au moins 2 sites qu'on ne reconnaît ni
+  // comme un grand portail immobilier ni comme notre propre plateforme —
+  // c'est le signal fiable d'une reprise sans lien légitime.
+  if (unknownDomains.length >= 2) {
     return {
       imageUrl,
       riskLevel: 'danger',
       matchCount: totalMatches,
-      foreignDomains: uniqueForeign,
-      detail: `Photo trouvée en ${fullMatches.length} copie(s) exacte(s) sur le web${uniqueForeign.length ? ` (${uniqueForeign.join(', ')})` : ''} — image volée très probable.`,
+      foreignDomains: unknownDomains,
+      detail: `Photo trouvée en ${totalMatches} copie(s) sur le web, dont des sites non reconnus (${unknownDomains.join(', ')}) — image volée très probable.`,
     };
   }
 
+  // Un seul site non reconnu — à vérifier, mais pas encore une conclusion ferme.
+  if (unknownDomains.length === 1) {
+    return {
+      imageUrl,
+      riskLevel: 'warning',
+      matchCount: totalMatches,
+      foreignDomains: unknownDomains,
+      detail: `Photo trouvée en ${totalMatches} occurrence(s) sur le web, dont un site non reconnu (${unknownDomains[0]}) — vérifiez qu'il s'agit bien d'autres annonces du même propriétaire.`,
+    };
+  }
+
+  // Aucun site "non reconnu" identifié, mais la photo est bien présente
+  // sur d'autres grands portails immobiliers légitimes — pratique
+  // normale de republication, pas un vol. Signal rassurant.
+  if (trustedDomains.length > 0) {
+    return {
+      imageUrl,
+      riskLevel: 'ok',
+      matchCount: totalMatches,
+      foreignDomains: [],
+      detail: `Cette photo est également présente sur d'autres portails immobiliers reconnus (${trustedDomains.slice(0, 3).join(', ')}) — signe rassurant, pas de reprise suspecte détectée.`,
+    };
+  }
+
+  // Vision a trouvé des copies mais sans page identifiable (ex : copie
+  // directe sur un CDN, sans page web indexée autour) — on ne peut ni
+  // rassurer ni accuser, juste inviter à vérifier.
   if (fullMatches.length >= 1 || partialMatches.length >= 2) {
     return {
       imageUrl,
       riskLevel: 'warning',
       matchCount: totalMatches,
-      foreignDomains: uniqueForeign,
+      foreignDomains: [],
       detail: `Photo trouvée en ${totalMatches} occurrence(s) sur le web — vérifiez qu'il s'agit bien d'autres annonces du même propriétaire.`,
     };
   }
@@ -300,7 +379,7 @@ function assessImageRisk(visionResult, imageUrl) {
       imageUrl,
       riskLevel: 'warning',
       matchCount: similarImages.length,
-      foreignDomains: uniqueForeign,
+      foreignDomains: [],
       detail: `${similarImages.length} image(s) visuellement très proches trouvées sur le web (possible recadrage/filtre) — à vérifier manuellement.`,
     };
   }
@@ -489,6 +568,19 @@ function buildImageCriterion(imageAnalysis) {
     };
   }
 
+  // "ok" peut désormais recouvrir deux cas bien différents : aucune copie
+  // trouvée nulle part, OU des copies trouvées uniquement sur d'autres
+  // grands portails immobiliers reconnus (republication normale) — on le
+  // précise pour ne pas laisser croire à tort qu'aucune copie n'existe.
+  const reassuring = results.filter(r => r.riskLevel === 'ok' && r.matchCount > 0);
+  if (reassuring.length > 0) {
+    return {
+      label: 'Vérification des photos',
+      status: 'ok',
+      detail: `${summary.totalChecked} photo(s) vérifiée(s) — ${reassuring.length} présente(s) sur d'autres portails immobiliers reconnus (republication normale), aucune reprise suspecte détectée.`,
+    };
+  }
+
   return {
     label: 'Vérification des photos',
     status: 'ok',
@@ -500,6 +592,8 @@ module.exports = {
   analyseListingImages,
   buildImageCriterion,
   extractImageUrls,
+  assessImageRisk,
+  classifyDomain,
   computePerceptualHash,
   checkImageHash,
   checkImageHashFuzzy,
